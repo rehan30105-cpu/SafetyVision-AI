@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Review access request - SafetyVision AI{% endblock %}
+{% block page_title %}Review access request{% endblock %}
+{% block page_subtitle %}Confirm a decision for this pending request{% endblock %}
+{% block content %}
+<section class="card">
+  <h2>{{ item.name }}</h2>
+  <p><strong>Email:</strong> {{ item.email }}</p>
+  <p><strong>Organization:</strong> {{ item.company }}</p>
+  <p><strong>Role / purpose:</strong> {{ item.role }}</p>
+  <p><strong>Details:</strong> {{ item.message or 'None provided' }}</p>
+  <p><strong>Submitted:</strong> {{ item.created_at }}</p>
+  <p><strong>Status:</strong> {{ item.status }}</p>
+  {% if item.status == 'PENDING' %}
+  <form method="post" action="{{ url_for('admin_demo_request_review', request_id=item.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="form_token" value="{{ form_token }}">
+    <input type="hidden" name="email_action_token" value="{{ email_action_token }}">
+    <label for="decision-note">Review note (optional)</label>
+    <textarea id="decision-note" name="review_notes" maxlength="1000"></textarea>
+    {% if decision == 'APPROVED' %}<button class="btn btn-primary" name="decision" value="APPROVED">Confirm approval</button>
+    {% else %}<button class="btn btn-outline" name="decision" value="REJECTED">Confirm rejection</button>{% endif %}
+  </form>
+  {% else %}<p>This request has already been reviewed; no further decision can be made.</p>{% endif %}
+</section>
+{% endblock %}

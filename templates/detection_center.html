@@ -1,0 +1,941 @@
+{% extends "base.html" %}
+
+{% block title %}Detection Center | SafetyVision AI{% endblock %}
+{% block page_title %}PPE & Safety Detection Center{% endblock %}
+{% block page_subtitle %}Live AI Video Monitoring & Image PPE Compliance Verification{% endblock %}
+
+{% block content %}
+<!-- Header System Status Bar -->
+<div class="card dc-status-bar" style="margin-bottom:18px;">
+    <div class="card-body" style="padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary);">PPE & Safety Detection Center</div>
+            <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">
+                Analyze images and recorded video using live AI-assisted PPE detection.
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="badge badge-low" style="font-size:0.75rem; padding:6px 12px;">
+                ● SYSTEM OPERATIONAL
+            </span>
+            <span class="badge" style="background:var(--primary-subtle); color:var(--primary-text); border:1px solid var(--primary-border); font-size:0.75rem; padding:6px 12px;">
+                {% if model_info and model_info.classes %}MODEL: {{ model_info.model_name.split(' ')[0] }} ({{ model_info.classes|length }} Classes){% else %}MODEL: N/A{% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Two Main Selection Cards (Image & Video) -->
+<div id="selection-cards-row" class="dc-selection-grid">
+    <!-- 1. IMAGE DETECTION CARD -->
+    <div class="card dc-select-card" role="button" tabindex="0" aria-label="Select an image for PPE analysis" onclick="triggerImageSelect()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerImageSelect();}">
+        <div class="dc-select-mark" aria-hidden="true">
+            <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+            </svg>
+        </div>
+        <h3>
+            Image analysis
+        </h3>
+        <p>
+            Analyze a static photo or snapshot for PPE compliance across all detected workers.
+        </p>
+        <input type="file" id="image-file-input" accept="image/*" style="display:none;" onchange="onImageSelected(event)">
+        <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); triggerImageSelect()">
+            <span>Select Image</span>
+        </button>
+    </div>
+
+    <!-- 2. VIDEO DETECTION CARD -->
+    <div class="card dc-select-card" role="button" tabindex="0" aria-label="Select a video for PPE analysis" onclick="triggerVideoSelect()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerVideoSelect();}">
+        <div class="dc-select-mark dc-select-mark-video" aria-hidden="true">
+            <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m22 8-6 4 6 4V8Z"/>
+                <rect width="14" height="12" x="2" y="6" rx="2"/>
+            </svg>
+        </div>
+        <h3>
+            Video analysis
+        </h3>
+        <p>
+            Watch real-time AI analysis while the video plays, with live bounding boxes & timeline.
+        </p>
+        <input type="file" id="video-file-input" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,.mp4,.webm,.mov,.avi" style="display:none;" onchange="onVideoSelected(event)">
+        <button type="button" class="btn btn-outline" onclick="event.stopPropagation(); triggerVideoSelect()">
+            <span>Select Video</span>
+        </button>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- 1. IMAGE WORKSPACE SECTION -->
+<!-- ======================================================== -->
+<div id="image-workspace-container" style="display:none;">
+    <!-- Workspace Sub-Header with Switch Button -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div class="badge badge-low" style="font-size:0.82rem; padding:6px 14px;">
+            MODE: IMAGE DETECTION
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="resetToSelectionCards()">
+            &larr; Switch Mode / Select New File
+        </button>
+    </div>
+
+    <!-- 2-Column Responsive Layout: Left Media Viewport + Right Results Panel -->
+    <div style="display:grid; grid-template-columns: 1.6fr 1.1fr; gap:24px; align-items:start;">
+        <!-- LEFT: Media Viewport & Controls -->
+        <div>
+            <div class="card" style="margin-bottom:0; overflow:hidden;">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px;">
+                    <div class="card-title" id="viewport-card-title" style="font-size:0.95rem;">
+                        Selected File Preview
+                    </div>
+                    <span id="viewport-file-name" style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+                        file.jpg
+                    </span>
+                </div>
+
+                <div class="card-body" style="padding:16px; background:#141414;">
+                    <!-- Image Display Area -->
+                    <div id="image-display-wrapper" style="width:100%; min-height:380px; max-height:540px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:var(--radius-md);">
+                        <img id="image-view-element" src="" alt="Analyzed Media" style="max-width:100%; max-height:520px; object-fit:contain; border-radius:var(--radius-sm); display:block;">
+                    </div>
+
+                    <!-- Progress / Processing Banner -->
+                    <div id="processing-indicator" style="display:none; text-align:center; padding:32px 16px; background:rgba(10,10,10,0.95); border-radius:var(--radius-md); margin-top:12px; color:#FFFFFF;">
+                        <div class="spinner" style="width:36px; height:36px; border:3px solid #FF941F; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px;"></div>
+                        <div id="processing-title" style="font-weight:700; font-size:1rem; color:#FF941F;">Running YOLOv8n Inference...</div>
+                        <div id="processing-desc" style="font-size:0.8rem; color:#949494; margin-top:4px;">Detecting personnel, spatial containment, and PPE compliance status.</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Button Action Bar -->
+                <div class="card-footer" style="padding:14px 18px; background:var(--bg-card); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button id="btn-run-analysis" class="btn btn-primary" onclick="executeImageAnalysis()">
+                        <span>▶ Analyze Image with YOLOv8n</span>
+                    </button>
+                    <a id="btn-download-session-report" href="#" class="btn btn-outline" style="display:none; border-color:var(--primary-text); color:var(--primary-text);">
+                        <span> Download Session Report (PDF)</span>
+                    </a>
+                    <a id="btn-view-session-detail" href="#" class="btn btn-outline" style="display:none;">
+                        <span> View Session Details</span>
+                    </a>
+                    <button id="btn-reselect-file" class="btn btn-outline" style="margin-left:auto;" onclick="triggerImageSelect()">
+                        <span>Select Another File</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Consolidated Session & Person-Wise Results -->
+        <div>
+            <!-- Session Summary KPI Card -->
+            <div id="session-kpi-card" class="card" style="margin-bottom:18px;">
+                <div class="card-header" style="padding:12px 16px;">
+                    <div>
+                        <div class="card-title" style="font-size:0.95rem;"> Detection Session Summary</div>
+                        <div id="session-uid-label" style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+                            Session Pending Analysis
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:14px 16px;">
+                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:12px;">
+                        <div style="background:var(--bg-card-subtle); padding:10px; border-radius:var(--radius-md);">
+                            <div style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">PEOPLE DETECTED</div>
+                            <div id="kpi-session-people" style="font-size:1.4rem; font-weight:700; color:var(--text-primary);">0</div>
+                        </div>
+                        <div style="background:var(--safe-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--safe-border);">
+                            <div style="font-size:0.72rem; color:var(--safe-text); font-weight:600;">COMPLIANT</div>
+                            <div id="kpi-session-compliant" style="font-size:1.4rem; font-weight:700; color:var(--safe-bright);">0</div>
+                        </div>
+                        <div style="background:var(--warning-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--warning-border);">
+                            <div style="font-size:0.72rem; color:var(--warning-text); font-weight:600;">PPE VIOLATIONS</div>
+                            <div id="kpi-session-violations" style="font-size:1.4rem; font-weight:700; color:var(--warning);">0</div>
+                        </div>
+                        <div style="background:var(--primary-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--primary-border);">
+                            <div style="font-size:0.72rem; color:var(--primary-text); font-weight:600;">OVERALL COMPLIANCE</div>
+                            <div id="kpi-session-rate" style="font-size:1.4rem; font-weight:700; color:var(--primary-text);">100%</div>
+                        </div>
+                    </div>
+                    <div id="session-status-banner" style="display:none; padding:8px 12px; border-radius:var(--radius-sm); font-size:0.8rem; font-weight:600; text-align:center;">
+                        ALL PERSONS COMPLIANT
+                    </div>
+                </div>
+            </div>
+
+            <!-- Person-Wise Independent Results -->
+            <div class="card" style="margin-bottom:0;">
+                <div class="card-header" style="padding:12px 16px;">
+                    <div>
+                        <div class="card-title" style="font-size:0.95rem;">Person-Wise PPE Results</div>
+                        <div style="font-size:0.72rem; color:var(--text-muted);">Independent evaluation per detected individual</div>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:14px; max-height:460px; overflow-y:auto;">
+                    <div id="person-results-list">
+                        <div style="text-align:center; padding:36px 16px; color:var(--text-muted); background:var(--bg-card-subtle); border-radius:var(--radius-md);">
+                            <div style="margin-bottom:8px; color:var(--text-muted); display:flex; justify-content:center;">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            </div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:2px;">No Analysis Run Yet</div>
+                            <div style="font-size:0.75rem;">Click "Analyze Image with YOLOv8n" to view individual results.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ======================================================== -->
+<!-- 2. LIVE AI VIDEO DETECTION WORKSPACE SECTION -->
+<!-- ======================================================== -->
+<div id="video-workspace-container" style="display:none;">
+    <!-- Workspace Sub-Header with Switch Button -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div class="badge badge-medium" style="font-size:0.82rem; padding:6px 14px;">
+                MODE: LIVE AI VIDEO ANALYSIS
+            </div>
+            <span id="video-filename-badge" style="font-size:0.78rem; color:var(--text-muted); font-family:var(--font-mono);"></span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="resetToSelectionCards()">
+            &larr; Switch Mode / Select New File
+        </button>
+    </div>
+
+    <!-- Video Error Banner (Hidden by default) -->
+    <div id="video-error-banner" style="display:none; background:var(--critical-subtle); border:1px solid var(--critical-border); color:var(--critical-text); padding:12px 16px; border-radius:var(--radius-md); font-size:0.85rem; font-weight:600; margin-bottom:16px;"></div>
+
+    <!-- 2-Column Responsive Layout: Left Live Video Player + Right Real-Time Side Panel -->
+    <div style="display:grid; grid-template-columns: 1.65fr 1.05fr; gap:24px; align-items:start;">
+        
+        <!-- LEFT: Video Viewport & Controls & Timeline -->
+        <div>
+            <!-- Video Viewport Container with Canvas Overlay -->
+            <div id="video-viewport-wrapper" class="video-viewport-wrapper" style="min-height:480px; height:500px; position:relative; background:#000000; border-radius:var(--radius-lg); overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.18); display:flex; align-items:center; justify-content:center;">
+                <!-- Native Video Element -->
+                <video id="video-element" playsinline muted preload="auto" style="width:100%; height:100%; max-width:100%; max-height:100%; object-fit:contain; display:block; margin:0 auto; background:#000000;"></video>
+                
+                <!-- HUD Canvas Overlay for Bounding Boxes -->
+                <canvas id="video-canvas" class="canvas-overlay" style="position:absolute; pointer-events:none;"></canvas>
+
+                <!-- Top HUD Bar -->
+                <div class="hud-top-bar" style="position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; z-index:10;">
+                    <div style="display:flex; gap:8px;">
+                        <div class="hud-pill" id="video-status-pill">
+                            <span class="pulse-dot" style="background:#10B981;"></span> READY
+                        </div>
+                        <div class="hud-pill" id="video-time-pill" style="font-family:var(--font-mono);">00:00 / --:--</div>
+                        <div class="hud-pill" id="video-fps-pill">FPS: —</div>
+                        <div class="hud-pill" id="video-latency-pill" title="Model Inference Time">Latency: —</div>
+                    </div>
+
+                    <div style="display:flex; gap:8px;">
+                        <div class="hud-pill" style="font-size:0.72rem;">YOLOv8n &bull; {{ model_info.device }}</div>
+                        <button type="button" onclick="videoEngine.toggleFullscreen()" class="hud-pill" style="cursor:pointer;" title="Fullscreen">[  ]</button>
+                    </div>
+                </div>
+
+                <!-- Bottom Video Controls Strip -->
+                <div class="hud-controls-bar" style="position:absolute; bottom:12px; left:12px; right:12px; display:flex; flex-direction:column; gap:8px; background:rgba(10,10,10,0.92); backdrop-filter:blur(8px); padding:10px 14px; border-radius:var(--radius-md); z-index:10;">
+                    <!-- Scrubber Bar -->
+                    <div id="video-progress-bar" onclick="videoEngine.seekVideo(event)" style="width:100%; height:6px; background:rgba(255,255,255,0.2); cursor:pointer; border-radius:3px; position:relative; overflow:hidden;">
+                        <div id="video-progress-bar-fill" style="height:100%; width:0%; background:#FF941F; transition:width 0.1s linear;"></div>
+                    </div>
+
+                    <!-- Buttons Row -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <!-- Left Playback Buttons -->
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button id="btn-video-play-pause" class="btn btn-primary btn-sm" onclick="videoEngine.playPause()">
+                                <span>▶ Play & Analyze</span>
+                            </button>
+                            <button id="btn-video-stop" class="btn btn-hud-danger btn-sm" onclick="videoEngine.stopAndFinalize()">
+                                <span>⏹ Stop & Finalize</span>
+                            </button>
+                            <button id="btn-video-volume" class="btn btn-hud btn-sm" style="padding:4px 8px;" onclick="videoEngine.toggleMute()" title="Mute/Unmute">
+                                
+                            </button>
+                        </div>
+
+                        <!-- Right Overlay Toggles -->
+                        <div class="toggle-group" style="display:flex; gap:6px;">
+                            <button id="tog-vid-bbox" class="toggle-btn active" onclick="videoEngine.toggleOverlay('showBBoxes', this)">B-Boxes</button>
+                            <button id="tog-vid-labels" class="toggle-btn active" onclick="videoEngine.toggleOverlay('showLabels', this)">Labels</button>
+                            <button id="tog-vid-hazards" class="toggle-btn active" onclick="videoEngine.toggleOverlay('showHazards', this)">Hazards</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Safety Events Timeline Below Video Feed -->
+            <div class="card" style="margin-top:16px; margin-bottom:0;">
+                <div class="card-header" style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div class="card-title" style="font-size:0.9rem;">
+                            <span>Safety Events Timeline</span>
+                        </div>
+                        <div style="font-size:0.72rem; color:var(--text-muted);">State-based alerts synchronized to video timestamp</div>
+                    </div>
+                    <span class="badge badge-low" style="font-size:0.7rem;">Live Session</span>
+                </div>
+                <div class="card-body" style="padding:10px 16px;">
+                    <div id="video-event-timeline" class="timeline-container" style="max-height:160px; overflow-y:auto;">
+                        <div class="timeline-empty-notice" style="text-align:center; padding:16px; color:var(--text-muted); font-size:0.8rem;">
+                            Video loaded. Click <b>▶ Play & Analyze</b> to begin real-time PPE detection.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Live Video Safety Summary & Independent Current People Cards -->
+        <div>
+            <!-- Live Safety Summary Grid -->
+            <div id="video-live-summary-card" class="card" style="margin-bottom:16px;">
+                <div class="card-header" style="padding:12px 16px;">
+                    <div>
+                        <div class="card-title" style="font-size:0.95rem;">LIVE VIDEO SAFETY</div>
+                        <div id="session-uid-label-vid" style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono);">
+                            Live Monitoring Active
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:14px 16px;">
+                    <!-- 4 KPI Metrics -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                        <div style="background:var(--bg-card-subtle); padding:10px; border-radius:var(--radius-md);">
+                            <div style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">PEOPLE DETECTED</div>
+                            <div id="kpi-video-people" style="font-size:1.5rem; font-weight:700; color:var(--text-primary);">0</div>
+                        </div>
+                        <div style="background:var(--safe-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--safe-border);">
+                            <div style="font-size:0.72rem; color:var(--safe-text); font-weight:600;">COMPLIANT</div>
+                            <div id="kpi-video-compliant" style="font-size:1.5rem; font-weight:700; color:var(--safe-bright);">0</div>
+                        </div>
+                        <div style="background:var(--warning-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--warning-border);">
+                            <div style="font-size:0.72rem; color:var(--warning-text); font-weight:600;">PPE VIOLATIONS</div>
+                            <div id="kpi-video-violations" style="font-size:1.5rem; font-weight:700; color:var(--warning);">0</div>
+                        </div>
+                        <div style="background:var(--critical-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--critical-border);">
+                            <div style="font-size:0.72rem; color:var(--critical-text); font-weight:600;">CRITICAL HAZARDS</div>
+                            <div id="kpi-video-critical" style="font-size:1.5rem; font-weight:700; color:var(--critical);">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Compliance Rate Bar -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--primary-subtle); border:1px solid var(--primary-border); padding:10px 14px; border-radius:var(--radius-md); margin-bottom:10px;">
+                        <div>
+                            <div style="font-size:0.72rem; font-weight:700; color:var(--primary-text);">CURRENT COMPLIANCE</div>
+                            <div style="font-size:0.7rem; color:var(--primary-text);">Across currently visible personnel</div>
+                        </div>
+                        <div id="kpi-video-compliance-rate" style="font-size:1.4rem; font-weight:700; color:var(--primary-text);">N/A</div>
+                    </div>
+
+                    <div id="video-live-status-banner" style="display:none; padding:8px 12px; border-radius:var(--radius-sm); font-size:0.8rem; font-weight:600; text-align:center;">
+                        MONITORING VIDEO STREAM
+                    </div>
+                </div>
+            </div>
+
+            <!-- CURRENT PEOPLE (MANDATORY INDEPENDENT EVALUATION) -->
+            <div class="card" style="margin-bottom:0;">
+                <div class="card-header" style="padding:12px 16px;">
+                    <div>
+                        <div class="card-title" style="font-size:0.95rem;">CURRENT PEOPLE</div>
+                        <div style="font-size:0.72rem; color:var(--text-muted);">Independent PPE evaluation per detected individual</div>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:12px 14px; max-height:420px; overflow-y:auto;">
+                    <div id="video-current-people">
+                        <div style="text-align:center; padding:28px 14px; color:var(--text-muted); background:var(--bg-card-subtle); border-radius:var(--radius-md);">
+                            <div style="margin-bottom:6px; font-size:1.4rem;"></div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:2px;">Ready for Video Playback</div>
+                            <div style="font-size:0.75rem;">Personnel will be analyzed independently as they appear in the video.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Final Safety Result & Report Section (Rendered on video completion) -->
+    <div id="video-final-result-section" style="display:none; margin-top:24px;"></div>
+</div>
+
+<!-- ======================================================== -->
+<!-- 3. RECENT ANALYSIS + MODEL INFORMATION (two-column row)  -->
+<!-- ======================================================== -->
+<div id="detection-insights-row" class="dc-sec-grid">
+    <!-- A. RECENT ANALYSIS — real detection_sessions records, session-detail links -->
+    <section class="card dc-sec-card">
+        <div class="card-header dc-sec-head">
+            <div class="dc-sec-head-main">
+                <span class="dc-sec-icon dc-ic-blue">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </span>
+                <div class="dc-sec-head-text">
+                    <div class="card-title">Recent Analysis</div>
+                    <div class="section-sub">Latest image/video detection results</div>
+                </div>
+            </div>
+            <a href="/history" class="btn btn-outline btn-sm dc-view-all-btn" title="Open full Detection History">
+                <span>View All</span>
+                <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table dc-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>People</th>
+                        <th>Compliance</th>
+                        <th>Violations</th>
+                        <th>Result</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-analysis-body">
+                    <tr>
+                        <td colspan="7" class="dc-state-cell" aria-busy="true">
+                            <span class="sv-skeleton sv-skeleton-line w65" style="display:block;"></span>
+                            <span class="sv-skeleton sv-skeleton-line w85" style="display:block;"></span>
+                            <span class="sv-skeleton sv-skeleton-line w40" style="display:block;"></span>
+                            <span class="sr-only">Loading recent sessions&hellip;</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <!-- B. MODEL INFORMATION — existing model/runtime/settings data, N/A when unavailable -->
+    {% set dc_class_colors = {'Hardhat':'#F59E0B','Mask':'#06B6D4','NO-Hardhat':'#EF4444','NO-Mask':'#F97316','NO-Safety Vest':'#DC2626','Person':'#8B5CF6','Safety Cone':'#F59E0B','Safety Vest':'#3B82F6','machinery':'#EC4899','vehicle':'#6366F1'} %}
+    <section class="card dc-sec-card">
+        <div class="card-header dc-sec-head">
+            <div class="dc-sec-head-main">
+                <span class="dc-sec-icon dc-ic-cyan">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </span>
+                <div class="dc-sec-head-text">
+                    <div class="card-title">Model Information</div>
+                    <div class="section-sub">Current model status and configuration</div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body" style="padding:16px 18px 18px;">
+            <div class="dc-stat-grid">
+                <!-- 1. Model Name -->
+                <div class="dc-stat-tile">
+                    <span class="dc-stat-icon dcsi-blue"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+                    <div class="dc-stat-text">
+                        <div class="dc-stat-label">Model Name</div>
+                        <div class="dc-stat-value{% if not (model_info and model_info.model_name) %} dc-val-muted{% endif %}"{% if model_info and model_info.model_path %} title="{{ model_info.model_path }}"{% endif %}>{% if model_info and model_info.model_name %}{{ model_info.model_name }}{% else %}N/A{% endif %}</div>
+                    </div>
+                </div>
+                <!-- 2. Model Status -->
+                <div class="dc-stat-tile">
+                    <span class="dc-stat-icon dcsi-green"><svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></span>
+                    <div class="dc-stat-text">
+                        <div class="dc-stat-label">Model Status</div>
+                        <div class="dc-stat-value">
+                            {% if model_info and model_info.classes %}
+                            <span class="dc-status-live"><span class="dc-status-dot"></span>Active</span>
+                            {% else %}<span class="dc-val-muted">N/A</span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- 3. Total Classes -->
+                <div class="dc-stat-tile">
+                    <span class="dc-stat-icon dcsi-indigo"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>
+                    <div class="dc-stat-text">
+                        <div class="dc-stat-label">Total Classes</div>
+                        <div class="dc-stat-value{% if not (model_info and model_info.classes) %} dc-val-muted{% endif %}">{% if model_info and model_info.classes %}{{ model_info.classes|length }}{% else %}N/A{% endif %}</div>
+                    </div>
+                </div>
+                <!-- 4. Input Size (system_settings.inference_resolution, loaded client-side) -->
+                <div class="dc-stat-tile">
+                    <span class="dc-stat-icon dcsi-cyan"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></span>
+                    <div class="dc-stat-text">
+                        <div class="dc-stat-label">Input Size</div>
+                        <div class="dc-stat-value dc-val-muted" id="mi-input-size">N/A</div>
+                    </div>
+                </div>
+                <!-- 5. Inference Latency (runtime average; N/A before any inference) -->
+                <div class="dc-stat-tile">
+                    <span class="dc-stat-icon dcsi-amber"><svg viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span>
+                    <div class="dc-stat-text">
+                        <div class="dc-stat-label">Inference Latency</div>
+                        {% if model_info and model_info.total_inferences|default(0) > 0 %}
+                        <div class="dc-stat-value" title="Average across {{ model_info.total_inferences }} inference runs">{{ model_info.average_latency_ms }} ms</div>
+                        {% else %}
+                        <div class="dc-stat-value dc-val-muted" title="No inference completed yet in this server process">N/A</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- 6. Confidence Threshold (system_settings.confidence_threshold, loaded client-side) -->
+                <div class="dc-stat-tile">
+                    <span class="dc-stat-icon dcsi-blue"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+                    <div class="dc-stat-text">
+                        <div class="dc-stat-label">Confidence Threshold</div>
+                        <div class="dc-stat-value dc-val-muted" id="mi-conf-threshold">N/A</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detected class names from the loaded model -->
+            <div class="dc-classes-block">
+                <div class="dc-classes-title">Detected Classes</div>
+                <div class="dc-chip-grid">
+                    {% if model_info and model_info.classes %}
+                    {% for cid, cname in model_info.classes.items() %}
+                    <span class="dc-chip" style="--chip-color: {{ dc_class_colors.get(cname, '#94A3B8') }};">
+                        <span class="dc-chip-dot"></span>{{ cname }}
+                    </span>
+                    {% endfor %}
+                    {% else %}
+                    <span class="dc-chip dc-chip-muted"><span class="dc-chip-dot"></span>N/A</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<script src="/static/js/video_detection.js"></script>
+<script>
+let activeMode = 'NONE'; // 'IMAGE' or 'VIDEO'
+let activeImageFile = null;
+
+function triggerImageSelect() {
+    document.getElementById('image-file-input').click();
+}
+
+function triggerVideoSelect() {
+    document.getElementById('video-file-input').click();
+}
+
+function onImageSelected(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    activeMode = 'IMAGE';
+    activeImageFile = file;
+
+    // Show Image Workspace, hide others
+    document.getElementById('selection-cards-row').style.display = 'none';
+    document.getElementById('video-workspace-container').style.display = 'none';
+    document.getElementById('image-workspace-container').style.display = 'block';
+
+    document.getElementById('viewport-card-title').textContent = 'Image Preview (Click Analyze)';
+    document.getElementById('viewport-file-name').textContent = file.name;
+    document.getElementById('processing-indicator').style.display = 'none';
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('image-view-element').src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    // Reset results & buttons
+    resetImageSessionOutputUI();
+    document.getElementById('btn-run-analysis').style.display = 'inline-flex';
+    document.getElementById('btn-run-analysis').textContent = '▶ Analyze Image with YOLOv8n';
+}
+
+function onVideoSelected(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    activeMode = 'VIDEO';
+
+    // Show Video Workspace, hide others
+    document.getElementById('selection-cards-row').style.display = 'none';
+    document.getElementById('image-workspace-container').style.display = 'none';
+    document.getElementById('video-workspace-container').style.display = 'block';
+
+    const fnBadge = document.getElementById('video-filename-badge');
+    if (fnBadge) fnBadge.textContent = file.name;
+
+    // Load video into live video detection engine
+    const engine = window.videoEngine || (typeof videoEngine !== 'undefined' ? videoEngine : null);
+    if (engine) {
+        engine.loadVideoFile(file);
+    } else {
+        console.error('[VIDEO DEBUG] No videoEngine instance available!');
+    }
+}
+
+function resetToSelectionCards() {
+    activeMode = 'NONE';
+    activeImageFile = null;
+
+    if (window.videoEngine) {
+        window.videoEngine.stopAnalysisLoop();
+        if (window.videoEngine.videoEl) {
+            window.videoEngine.videoEl.pause();
+            window.videoEngine.videoEl.src = '';
+        }
+    }
+
+    document.getElementById('image-file-input').value = '';
+    document.getElementById('video-file-input').value = '';
+
+    document.getElementById('image-workspace-container').style.display = 'none';
+    document.getElementById('video-workspace-container').style.display = 'none';
+    document.getElementById('selection-cards-row').style.display = 'grid';
+}
+
+function resetImageSessionOutputUI() {
+    document.getElementById('session-uid-label').textContent = 'Session Pending Analysis';
+    document.getElementById('kpi-session-people').textContent = '0';
+    document.getElementById('kpi-session-compliant').textContent = '0';
+    document.getElementById('kpi-session-violations').textContent = '0';
+    document.getElementById('kpi-session-rate').textContent = 'N/A';
+    document.getElementById('session-status-banner').style.display = 'none';
+
+    document.getElementById('btn-download-session-report').style.display = 'none';
+    document.getElementById('btn-view-session-detail').style.display = 'none';
+
+    document.getElementById('person-results-list').innerHTML = `
+        <div style="text-align:center; padding:36px 16px; color:var(--text-muted); background:var(--bg-card-subtle); border-radius:var(--radius-md);">
+            <div style="font-size:1.8rem; margin-bottom:6px;"></div>
+            <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:2px;">Ready for Analysis</div>
+            <div style="font-size:0.75rem;">Click "Analyze Image with YOLOv8n" above to begin.</div>
+        </div>
+    `;
+}
+
+async function executeImageAnalysis() {
+    if (!activeImageFile) {
+        showToast('Error', 'Please select an image first.', 'CRITICAL');
+        return;
+    }
+
+    const btnAnalyze = document.getElementById('btn-run-analysis');
+    btnAnalyze.disabled = true;
+    btnAnalyze.innerHTML = '<span class="spinner" style="width:14px; height:14px; display:inline-block; border:2px solid #FFF; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; margin-right:6px;"></span> Analyzing...';
+
+    const indicator = document.getElementById('processing-indicator');
+    indicator.style.display = 'block';
+
+    const formData = new FormData();
+    formData.append('image', activeImageFile);
+    formData.append('csrf_token', '{{ csrf_token }}');
+
+    try {
+        const resp = await fetch('/api/detect/image', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await resp.json();
+        indicator.style.display = 'none';
+        btnAnalyze.disabled = false;
+        btnAnalyze.innerHTML = '<span>▶ Re-Analyze Image</span>';
+
+        if (resp.ok && data.success) {
+            renderImageAnalysisSuccess(data);
+            showToast('Success', `Image analysis complete! Session ${data.session_uid} created.`, 'SUCCESS');
+        } else {
+            showToast('Analysis Error', data.error || 'Failed to analyze image.', 'CRITICAL');
+        }
+    } catch (err) {
+        indicator.style.display = 'none';
+        btnAnalyze.disabled = false;
+        btnAnalyze.innerHTML = '<span>▶ Analyze Image with YOLOv8n</span>';
+        showToast('Network Error', err.message, 'CRITICAL');
+    }
+}
+
+function renderImageAnalysisSuccess(data) {
+    // Reflect the freshly created session in the Recent Analysis section
+    if (typeof refreshRecentAnalysis === 'function') {
+        refreshRecentAnalysis();
+    }
+
+    if (data.annotated_image_url) {
+        const imgEl = document.getElementById('image-view-element');
+        imgEl.src = data.annotated_image_url;
+        document.getElementById('viewport-card-title').textContent = 'Analyzed Output (Stable Annotations)';
+    }
+
+    document.getElementById('session-uid-label').textContent = `Session UID: ${data.session_uid}`;
+    document.getElementById('kpi-session-people').textContent = data.people_count || 0;
+    document.getElementById('kpi-session-compliant').textContent = data.compliant_count || 0;
+    document.getElementById('kpi-session-violations').textContent = data.violation_count || 0;
+    const pCount = (data.people_count !== undefined) ? data.people_count : 0;
+    const rateText = (pCount > 0 && data.overall_compliance !== undefined && data.overall_compliance !== 'N/A')
+        ? `${data.overall_compliance}%`
+        : 'N/A';
+    document.getElementById('kpi-session-rate').textContent = rateText;
+
+    const statusBanner = document.getElementById('session-status-banner');
+    statusBanner.style.display = 'block';
+    if ((data.violation_count || 0) === 0) {
+        statusBanner.style.background = 'var(--safe-subtle)';
+        statusBanner.style.color = 'var(--safe-text)';
+        statusBanner.style.border = '1px solid var(--safe-border)';
+        statusBanner.textContent = '&#10003; ALL PERSONS COMPLIANT (Zero Infractions)';
+    } else {
+        statusBanner.style.background = 'var(--critical-subtle)';
+        statusBanner.style.color = 'var(--critical-text)';
+        statusBanner.style.border = '1px solid var(--critical-border)';
+        statusBanner.textContent = ` ${data.violation_count} PERSONNEL IN VIOLATION`;
+    }
+
+    renderImagePersonCards(data.person_results || []);
+
+    const btnReport = document.getElementById('btn-download-session-report');
+    btnReport.href = `/reports/session/${data.session_uid}/download`;
+    btnReport.style.display = 'inline-flex';
+
+    const btnDetail = document.getElementById('btn-view-session-detail');
+    btnDetail.href = `/session/${data.session_uid}`;
+    btnDetail.style.display = 'inline-flex';
+}
+
+function renderImagePersonCards(personResults) {
+    const container = document.getElementById('person-results-list');
+    if (!personResults || personResults.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--bg-card-subtle); border-radius:var(--radius-md);">
+                <div style="margin-bottom:8px; color:var(--text-muted); display:flex; justify-content:center;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:2px;">No Personnel Detected</div>
+                <div style="font-size:0.75rem;">No workers were detected in this image.</div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    personResults.forEach((p, idx) => {
+        const complianceVal = (p.compliance_score !== undefined) ? p.compliance_score : 0.0;
+        const isCompliant = (complianceVal >= 99.0);
+        const riskVal = p.risk || (isCompliant ? 'LOW' : 'MEDIUM');
+        const borderColor = isCompliant ? '#10B981' : (riskVal === 'CRITICAL' ? '#EF4444' : (riskVal === 'HIGH' ? '#F97316' : '#F59E0B'));
+        const statusBadgeClass = isCompliant ? 'badge-low' : (riskVal === 'CRITICAL' ? 'badge-critical' : 'badge-high');
+        const statusText = p.status || (isCompliant ? 'COMPLIANT' : 'PPE VIOLATION');
+
+        const renderGearRow = (gearName, val, labelOverride, conf) => {
+            const isPresent = (val === 'PRESENT' || val === 'Present');
+            const badgeColor = isPresent ? '#10B981' : '#DC2626';
+            const badgeText = labelOverride || (isPresent ? '&#10003; DETECTED' : '&#10007; MISSING');
+            const confPercent = (conf > 1.0) ? Math.round(conf) : Math.round(conf * 100);
+            const confTag = (conf && conf > 0) ? `<span style="font-size:0.72rem; color:var(--text-muted); margin-left:4px;">(${confPercent}%)</span>` : '';
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border-subtle);">
+                    <span style="font-size:0.82rem; color:var(--text-secondary);">${gearName}</span>
+                    <div>
+                        <span style="color:${badgeColor}; font-weight:700; font-size:0.8rem;">${badgeText}</span>
+                        ${confTag}
+                    </div>
+                </div>
+            `;
+        };
+
+        html += `
+            <div class="card" style="margin-bottom:12px; border-left:4px solid ${borderColor}; box-shadow:var(--shadow-sm);">
+                <div style="padding:10px 14px; background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle);">
+                    <div>
+                        <div style="font-family:var(--font-display); font-weight:700; font-size:0.95rem; color:var(--text-primary);">
+                            ${p.label || ('Person #' + (p.person_id || (idx + 1)))}
+                        </div>
+                    </div>
+                    <span class="badge ${statusBadgeClass}">${statusText}</span>
+                </div>
+                <div style="padding:10px 14px; background:var(--bg-card);">
+                    ${renderGearRow('Hardhat', p.hardhat, p.hardhat_label, p.hardhat_conf)}
+                    ${renderGearRow('Protective Mask', p.mask, p.mask_label, p.mask_conf)}
+                    ${renderGearRow('Safety Vest', p.vest, p.vest_label, p.vest_conf)}
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid var(--border-subtle); font-size:0.78rem;">
+                        <span>Compliance: <b style="color:${isCompliant ? '#10B981' : '#DC2626'}; font-size:0.9rem;">${complianceVal}%</b></span>
+                        <span>Risk: <b style="color:${borderColor};">${riskVal}</b></span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+</script>
+<script>
+/* ============================================================
+   Detection Center — Recent Analysis + Model Information
+   Real data only, sourced from existing pages/records:
+   - /history  -> detection_sessions rows (IMAGE/VIDEO); Action -> /session/<uid>
+   - /settings -> existing system_settings config (threshold / resolution)
+   Missing values or failed loads render "N/A" — nothing is faked.
+   ============================================================ */
+const DC_ROW_LIMIT = 5;
+
+function dcEscape(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function dcStateCell(inner) {
+    return '<tr><td colspan="7" class="dc-state-cell">' + inner + '</td></tr>';
+}
+
+const DC_TYPE_ICONS = {
+    IMAGE: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
+    VIDEO: '<svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>'
+};
+
+function dcComplianceClass(pct) {
+    if (pct >= 80) return 'good';
+    if (pct >= 50) return 'warn';
+    return 'bad';
+}
+
+function dcStatusBadge(status) {
+    const s = String(status || '').trim().toUpperCase();
+    if (s === 'COMPLETED') return '<span class="badge badge-low">Completed</span>';
+    if (s === 'IN_PROGRESS' || s === 'IN PROGRESS') return '<span class="badge badge-medium">In Progress</span>';
+    if (s === 'FAILED' || s === 'CANCELLED') return '<span class="badge badge-critical">' + dcEscape(status) + '</span>';
+    if (s) return '<span class="badge dc-badge-neutral">' + dcEscape(status) + '</span>';
+    return '<span class="badge dc-badge-neutral">N/A</span>';
+}
+
+function dcRenderRecentRows(rows) {
+    const body = document.getElementById('recent-analysis-body');
+    if (!body) return;
+
+    if (!rows.length) {
+        body.innerHTML = dcStateCell(
+            '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+            '<div class="dc-empty-title">No Image/Video Sessions Yet</div>' +
+            '<div class="dc-empty-sub">Run an image or video detection to record your first session.</div>' +
+            '<a href="/history">Open Detection History &rarr;</a>'
+        );
+        return;
+    }
+
+    let html = '';
+    rows.forEach(function (r) {
+        const parts = String(r.time || '').split(' ');
+        const datePart = parts[0] || r.time || 'N/A';
+        const timePart = parts.length > 1 ? parts.slice(1).join(' ') : '';
+        const pct = parseFloat(r.compliance);
+        const pctClass = isNaN(pct) ? '' : dcComplianceClass(pct);
+        const viol = parseInt(r.violations, 10);
+        const violHtml = isNaN(viol)
+            ? '<span class="dc-viol">N/A</span>'
+            : (viol > 0 ? '<span class="dc-viol">' + viol + '</span>' : '<span class="dc-viol zero">0</span>');
+        const typeKey = r.type === 'VIDEO' ? 'VIDEO' : 'IMAGE';
+        const action = r.href
+            ? '<a class="btn btn-outline btn-sm dc-view-btn" href="' + dcEscape(r.href) + '" title="Open session detail">' +
+              '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>View</span></a>'
+            : '<span style="color:var(--text-muted); font-size:0.78rem;">N/A</span>';
+
+        html += '<tr>' +
+            '<td><div class="dc-time-main">' + dcEscape(datePart) + '</div>' +
+            (timePart ? '<div class="dc-time-sub">' + dcEscape(timePart) + '</div>' : '') + '</td>' +
+            '<td><span class="dc-type t-' + typeKey.toLowerCase() + '">' + DC_TYPE_ICONS[typeKey] +
+            (typeKey === 'VIDEO' ? 'Video' : 'Image') + '</span></td>' +
+            '<td><span class="dc-people">' + dcEscape(r.people) + '</span></td>' +
+            '<td><span class="dc-pct ' + pctClass + '">' + (isNaN(pct) ? 'N/A' : dcEscape(r.compliance) + '%') + '</span></td>' +
+            '<td>' + violHtml + '</td>' +
+            '<td>' + dcStatusBadge(r.status) + '</td>' +
+            '<td>' + action + '</td>' +
+            '</tr>';
+    });
+    body.innerHTML = html;
+}
+/* Fetch real IMAGE/VIDEO sessions from the existing Detection History page */
+async function refreshRecentAnalysis() {
+    const body = document.getElementById('recent-analysis-body');
+    if (!body) return;
+    try {
+        const resp = await fetch('/history', { headers: { 'Accept': 'text/html' } });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+        const rows = [];
+        const trs = doc.querySelectorAll('.table tbody tr');
+        for (let i = 0; i < trs.length; i++) {
+            const tds = trs[i].querySelectorAll('td');
+            if (tds.length < 7) continue; // empty-state row uses colspan
+            const type = (tds[1].textContent || '').trim().toUpperCase();
+            if (type !== 'IMAGE' && type !== 'VIDEO') continue; // image/video sessions only
+            const peopleM = (tds[4].textContent || '').match(/\d+/);
+            const violM = (tds[5].textContent || '').match(/(\d+)\s*Violation/i);
+            const compM = (tds[6].textContent || '').match(/\d+(\.\d+)?/);
+            const linkEl = tds[0].querySelector('a[href^="/session/"]') ||
+                           (tds[8] && tds[8].querySelector('a[href^="/session/"]'));
+            rows.push({
+                time: (tds[2].textContent || '').trim(),
+                type: type,
+                people: peopleM ? peopleM[0] : 'N/A',
+                compliance: compM ? compM[0] : 'N/A',
+                violations: violM ? violM[1] : 'N/A',
+                status: (tds[7].textContent || '').trim(),
+                href: linkEl ? linkEl.getAttribute('href') : ''
+            });
+            if (rows.length >= DC_ROW_LIMIT) break;
+        }
+        dcRenderRecentRows(rows);
+    } catch (err) {
+        console.error('[DC] Recent analysis load failed:', err);
+        body.innerHTML = dcStateCell(
+            '<div class="dc-empty-title">Recent Sessions Unavailable</div>' +
+            '<div class="dc-empty-sub">Could not load session records right now.</div>' +
+            '<a href="/history">Open Detection History &rarr;</a>'
+        );
+    }
+}
+
+/* Read configured values from the existing Settings page (system_settings) */
+async function loadDetectionConfig() {
+    const confEl = document.getElementById('mi-conf-threshold');
+    const sizeEl = document.getElementById('mi-input-size');
+    if (!confEl && !sizeEl) return;
+    try {
+        const resp = await fetch('/settings', { headers: { 'Accept': 'text/html' } });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+        const confInput = doc.querySelector('[name="confidence_threshold"]');
+        const resSelect = doc.querySelector('[name="inference_resolution"]');
+        if (confInput && confInput.value && confEl) {
+            confEl.textContent = confInput.value;
+            confEl.classList.remove('dc-val-muted');
+            confEl.title = 'Configured detection confidence threshold';
+        }
+        if (resSelect && resSelect.value && sizeEl) {
+            sizeEl.textContent = resSelect.value + ' \u00d7 ' + resSelect.value;
+            sizeEl.classList.remove('dc-val-muted');
+            sizeEl.title = 'Configured inference resolution';
+        }
+    } catch (err) {
+        console.warn('[DC] Detection config unavailable, showing N/A:', err.message);
+    }
+}
+
+function dcInitInsights() {
+    refreshRecentAnalysis();
+    loadDetectionConfig();
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', dcInitInsights);
+} else {
+    dcInitInsights();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Detection</title>
+
+    <!-- &#10003; Correct UMD version -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <!-- &#10003; Your custom script must also be defer -->
+<script defer>
+    window.addEventListener('DOMContentLoaded', () => {
+        const status = document.getElementById("status");
+        const video = document.getElementById("video");
+
+        console.log(" Starting to load models...");
+
+        Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('/models')
+        ])
+        .then(() => {
+            console.log("&#10003; Models loaded successfully!");
+            startVideo();
+        })
+        .catch(err => {
+            status.textContent = " Model loading failed!";
+            console.error(" Error loading models:", err);
+        });
+
+        async function startVideo() {
+            console.log(" Starting webcam...");
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            video.addEventListener('play', async () => {
+                console.log(" Loading registered face...");
+                const img = await faceapi.fetchImage("/static/uploads/{{ snap_filename }}");
+
+                const registered = await faceapi
+                    .detectSingleFace(img)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+
+                if (!registered) {
+                    status.textContent = " No registered face found.";
+                    console.log(" No face found in registered image.");
+                    return;
+                }
+
+                console.log("&#10003; Registered face detected.");
+                const matcher = new faceapi.FaceMatcher(registered.descriptor, 0.6);
+
+                setInterval(async () => {
+                    const detection = await faceapi
+                        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
+
+                    if (detection) {
+                        const match = matcher.findBestMatch(detection.descriptor);
+                        status.textContent = match.toString();
+                        console.log(" Match found:", match.toString());
+                    } else {
+                        status.textContent = "No face detected.";
+                        console.log(" No face detected.");
+                    }
+                }, 3000);
+            });
+        }
+    });
+</script>
+
+
+
+</head>
+<body>
+    <h2>Face Recognition</h2>
+    <video id="video" width="640" height="480" autoplay muted></video>
+    <h3 id="status">Loading models...</h3>
+</body>
+</html>

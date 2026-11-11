@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto Capture with Stop & Animation</title>
+    <style>
+        video, canvas {
+            border: 2px solid var(--border-strong);
+            margin: 10px;
+        }
+        #flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            animation: none;
+        }
+        @keyframes flashEffect {
+            0%   { opacity: 0; }
+            25%  { opacity: 0.9; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h2> Auto Webcam Capture (Every 3 seconds)</h2>
+    <p>Press any letter key to stop capturing.</p>
+    <video id="video" width="640" height="480" autoplay muted></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="flash"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const flash = document.getElementById('flash');
+
+        let captureInterval;
+        let isCapturing = true;
+
+        function playFlash() {
+            flash.style.animation = 'flashEffect 0.4s';
+            flash.onanimationend = () => flash.style.animation = 'none';
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    captureInterval = setInterval(() => {
+                        if (!isCapturing) return;
+
+                        playFlash();
+
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const imageData = canvas.toDataURL('image/png');
+
+                        fetch('/upload', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ image_data: imageData })
+                        })
+                        .then(res => res.json())
+                        .then(data => console.log(data.message))
+                        .catch(err => console.error('Upload failed:', err));
+                    }, 3000);
+                };
+            })
+            .catch(err => console.error("Webcam error:", err));
+
+        document.addEventListener('keydown', (event) => {
+            if (/^[a-zA-Z]$/.test(event.key)) {
+                isCapturing = false;
+                clearInterval(captureInterval);
+                alert("Capture stopped");
+            }
+        });
+    </script>
+</body>
+</html>

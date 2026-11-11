@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}User Management | SafetyVision AI{% endblock %}
+{% block page_title %}User & Role-Based Access Control{% endblock %}
+{% block page_subtitle %}Enterprise Permissions, Security Governance & Auditor Authentication{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }}" role="status">{{ message }}</div>{% endfor %}{% endif %}{% endwith %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div style="font-size:0.85rem; color:var(--text-secondary);">
+        Role-based authorization enforces least-privilege operations across monitoring, incident lifecycles, and configuration.
+    </div>
+    <button class="btn btn-primary" onclick="openUserModal()">+ Add New User</button>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Full Name</th>
+                    <th>Username</th>
+                    <th>Email Address</th>
+                    <th>Role Hierarchy</th>
+                    <th>Permissions Scope</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Account data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>#{{ u.id }}</td>
+                    <td><b>{{ u.full_name or u.username }}</b></td>
+                    <td style="font-family:var(--font-mono);">{{ u.username }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        <span class="badge {% if u.role == 'ADMIN' %}badge-critical{% elif u.role == 'SAFETY_OFFICER' %}badge-high{% else %}badge-low{% endif %}">
+                            {{ u.role }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--text-secondary);">
+                        {% if u.role == 'ADMIN' %}
+                        Full Access (Settings, Users, System, Vision)
+                        {% elif u.role == 'SAFETY_OFFICER' %}
+                        Monitoring, Incidents, Zones, Audits & Reports
+                        {% else %}
+                        Live Detection, Stream View & Alerts
+                        {% endif %}
+                    </td>
+                    <td><span class="badge {% if u.is_active %}badge-low{% else %}badge-critical{% endif %}">{{ 'ACTIVE' if u.is_active else 'DISABLED' }}</span><form method="post" action="{{ url_for('admin_user_toggle_active', user_id=u.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="is_active" value="{{ 0 if u.is_active else 1 }}"><button class="btn btn-outline btn-sm" type="submit" {% if u.id == session.get('user_id') and u.role == 'ADMIN' %}disabled title="You cannot disable your own administrator account"{% endif %}>{{ 'Disable' if u.is_active else 'Enable' }}</button></form></td>
+                    <td style="font-size:0.75rem; color:var(--text-muted);">{{ u.created_at }}</td>
+                    <td><a class="btn btn-outline btn-sm" href="{{ url_for('admin_user_activity', user_id=u.id) }}">View activity</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="modal-user" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--color-overlay); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); width:460px; max-width:90%; padding:24px; box-shadow:var(--shadow-lg);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+            <h3 style="font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:var(--text-primary);">Add System User</h3>
+            <button onclick="closeUserModal()" style="font-size:1.2rem; color:var(--text-muted);">&times;</button>
+        </div>
+        <form action="/api/users/create" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="full_name" required class="form-control" placeholder="e.g. Elena Rostova">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" required class="form-control" placeholder="e.g. erostova">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" required class="form-control" placeholder="elena@safetyvision.ai">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <select name="role" class="form-control">
+                    <option value="OPERATOR">OPERATOR (Detection, Alerts, Basic History)</option>
+                    <option value="SAFETY_OFFICER">SAFETY OFFICER (Incidents, Zones, Audits, Reports)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Initial Password</label>
+                <input type="password" name="password" minlength="12" maxlength="256" required class="form-control" placeholder="At least 12 characters">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                <button type="button" class="btn btn-outline" onclick="closeUserModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openUserModal() { document.getElementById('modal-user').style.display = 'flex'; }
+function closeUserModal() { document.getElementById('modal-user').style.display = 'none'; }
+</script>
+{% endblock %}

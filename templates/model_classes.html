@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Model Classes | SafetyVision AI{% endblock %}
+{% block page_title %}Trained Model Classes & Taxonomy{% endblock %}
+{% block page_subtitle %}Full Catalog of the 10 Trained Semantic Classes, Industrial Regulations & Color Signatures{% endblock %}
+
+{% block content %}
+<div class="sv-scope">
+    <div class="sv-scope-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+    <div class="sv-scope-body">
+        <strong>Model Scope Disclosure:</strong> SafetyVision AI utilizes an explicitly trained 10-class YOLO model. The system strictly detects these 10 verified classes and does not claim detection of gloves, shoes, goggles, harness or ear protection unless future weights are trained and loaded.
+    </div>
+</div>
+
+<!-- 10 Supported Classes Grid -->
+<div class="sv-classes-grid">
+    {% set class_details = [
+        {'id': 0, 'name': 'Hardhat', 'category': 'Compliant PPE', 'color': '#10B981', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18h20M4 18v-4a8 8 0 0 1 16 0v4M9 10a3 3 0 0 1 6 0"/></svg>', 'desc': 'Industrial protective safety helmet meeting ANSI Z89.1 standards. Mandatory for head impact and falling object hazard protection.'},
+        {'id': 1, 'name': 'Mask', 'category': 'Compliant PPE', 'color': '#06B6D4', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v3a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6v-3z"/><path d="M4 12H2M22 12h-2"/></svg>', 'desc': 'Respiratory protective face mask reducing inhalation of dust, fumes, and airborne industrial particulates.'},
+        {'id': 2, 'name': 'NO-Hardhat', 'category': 'Safety Violation', 'color': '#EF4444', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', 'desc': 'Unprotected head detected in designated hazard areas. Triggers head protection compliance breach and base risk penalty.'},
+        {'id': 3, 'name': 'NO-Mask', 'category': 'Safety Violation', 'color': '#F97316', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', 'desc': 'Absence of mandated respiratory face covering in ventilated or particulate-sensitive workplace zones.'},
+        {'id': 4, 'name': 'NO-Safety Vest', 'category': 'Safety Violation', 'color': '#DC2626', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', 'desc': 'Absence of high-visibility safety vest in machinery or vehicle transit pathways. High collision risk factor.'},
+        {'id': 5, 'name': 'Person', 'category': 'Human Subject', 'color': '#8B5CF6', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>', 'desc': 'Human personnel detected on shop floor. Assigned a session tracking ID (Person #ID) for spatial tracking without facial recognition.'},
+        {'id': 6, 'name': 'Safety Cone', 'category': 'Hazard Perimeter', 'color': '#F59E0B', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 20h16L12 2zM8 15h8M9.5 11h5"/></svg>', 'desc': 'High-visibility safety cone used for perimeter demarcation. The system monitors cone count against barrier integrity standards.'},
+        {'id': 7, 'name': 'Safety Vest', 'category': 'Compliant PPE', 'color': '#3B82F6', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h4l4 4 4-4h4v16H4zM4 14h16"/></svg>', 'desc': 'Fluorescent retroreflective high-visibility safety vest complying with ANSI/ISEA 107. Ensures optical worker visibility.'},
+        {'id': 8, 'name': 'machinery', 'category': 'Active Hazard', 'color': '#EC4899', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>', 'desc': 'Heavy manufacturing machinery, CNC units, and stamping presses. Triggers proximity escalation when unvested workers approach.'},
+        {'id': 9, 'name': 'vehicle', 'category': 'Active Hazard', 'color': '#6366F1', 'svg': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>', 'desc': 'Industrial mobile equipment (forklifts, AGVs, transport trucks). Triggers 2D image-space proximity collision warnings.'}
+    ] %}
+
+    {% for c in class_details %}
+    <div class="sv-class" style="--cc: {{ c.color }};">
+        <div class="sv-class-head">
+            <div class="sv-class-idbox">
+                <div class="sv-class-ic">
+                    {{ c.svg|safe }}
+                </div>
+                <div>
+                    <div class="sv-class-name">{{ c.name }}</div>
+                    <span class="sv-badge {% if c.category == 'Compliant PPE' %}green{% elif c.category == 'Safety Violation' %}red{% elif c.category == 'Hazard Perimeter' %}amber{% elif c.category == 'Active Hazard' %}red{% else %}blue{% endif %}" style="margin-top:4px;">{{ c.category }}</span>
+                </div>
+            </div>
+            <span class="sv-class-id">Class ID: {{ c.id }}</span>
+        </div>
+        <div class="sv-class-body">
+            <p class="sv-class-desc">{{ c.desc }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

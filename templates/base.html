@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}SafetyVision AI{% endblock %} | Intelligent PPE Compliance & Risk Monitoring</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=sv124">
+    <!-- No-flash theme bootstrap: apply saved/system theme before first paint -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('sv_theme');
+          if (t !== 'light' && t !== 'dark' && t !== 'system') {
+            t = 'light'; /* Matches the warm-ivory landing page and ThemeManager default. */
+          }
+          var resolved = t;
+          if (t === 'system') {
+            resolved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', resolved);
+          // Preferences bootstrap: animations + compact sidebar
+          var anim = localStorage.getItem('sv_anim');
+          if (anim === 'off') document.documentElement.setAttribute('data-anim', 'off');
+          var compact = localStorage.getItem('sv_compact');
+          if (compact === 'on') document.documentElement.setAttribute('data-compact', 'on');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF941F'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z'/></svg>">
+    <!-- Chart.js for Interactive Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% set _nav_groups = {'dashboard':'Monitor','live':'Monitor','detection':'Monitor','cameras':'Monitor','history':'Records','incidents':'Records','analytics':'Records','reports':'Records','notifications':'Records','model_performance':'Model','model_classes':'Model','settings':'System','docs':'System','about':'System','demo_requests':'System'} %}
+    {% set crumb_group = _nav_groups.get(active_page, 'SafetyVision') %}
+    <div class="nav-backdrop" id="nav-backdrop"></div>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+                        <path d="M3 13a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <rect x="1.5" y="14" width="17" height="2" rx="1" fill="var(--text-primary)"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>SafetyVision <span class="brand-mono">AI</span></h1>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <!-- Monitor -->
+                <div>
+                    <div class="nav-section-title">Monitor</div>
+                    <div class="nav-group">
+                        <a href="/dashboard" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="/live" class="nav-item {% if active_page == 'live' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg></span>
+                            <span>Live Monitoring</span>
+                        </a>
+                        <a href="/detection" class="nav-item {% if active_page == 'detection' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></svg></span>
+                            <span>Detection Center</span>
+                        </a>
+                        <a href="/cameras" class="nav-item {% if active_page == 'cameras' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+                            <span>Cameras</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Records -->
+                <div>
+                    <div class="nav-section-title">Records</div>
+                    <div class="nav-group">
+                        <a href="/history" class="nav-item {% if active_page == 'history' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                            <span>Detection History</span>
+                        </a>
+                        <a href="/incidents" class="nav-item {% if active_page == 'incidents' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
+                            <span>Incidents</span>
+                            <span class="nav-pill-badge" id="sidebar-incident-count">{{ critical_count|default(0) }}</span>
+                        </a>
+                        <a href="/analytics" class="nav-item {% if active_page == 'analytics' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span>
+                            <span>Analytics &amp; Metrics</span>
+                        </a>
+                        <a href="/reports" class="nav-item {% if active_page == 'reports' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg></span>
+                            <span>Reports</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Model -->
+                <div>
+                    <div class="nav-section-title">Model</div>
+                    <div class="nav-group">
+                        <a href="/model-performance" class="nav-item {% if active_page == 'model_performance' %}active{% endif %}">
+                            <span class="nav-item-icon">
+                                <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            </span>
+                            <span>Model Performance</span>
+                        </a>
+                        <a href="/model-classes" class="nav-item {% if active_page == 'model_classes' %}active{% endif %}">
+                            <span class="nav-item-icon">
+                                <svg viewBox="0 0 24 24"><path d="m3.85 8.62 4.77-4.77a2 2 0 0 1 1.41-.59h7.97a2 2 0 0 1 2 2v7.97a2 2 0 0 1-.59 1.41l-4.77 4.77a2 2 0 0 1-2.83 0L3.85 11.45a2 2 0 0 1 0-2.83Z"/><circle cx="16" cy="8" r="1.5"/></svg>
+                            </span>
+                            <span>Model Classes</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- System Category -->
+                <div>
+                    <div class="nav-section-title">System</div>
+                    <div class="nav-group">
+                        <a href="{{ url_for('settings') if session.get('role') != 'ADMIN' else url_for('admin_settings') }}" class="nav-item {% if active_page == 'settings' %}active{% endif %}">
+                            <span class="nav-item-icon">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            </span>
+                            <span>Settings</span>
+                        </a>
+                        {% if session.get('role') == 'ADMIN' %}
+                        <a href="{{ url_for('admin_demo_requests') }}" class="nav-item {% if active_page == 'demo_requests' %}active{% endif %}">
+                            <span class="nav-item-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+                            <span>Demo requests</span>
+                        </a>
+                        {% endif %}
+                        <a href="/docs" class="nav-item {% if active_page == 'docs' %}active{% endif %}">
+                            <span class="nav-item-icon">
+                                <svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+                            </span>
+                            <span>Documentation</span>
+                        </a>
+                        <a href="/about" class="nav-item {% if active_page == 'about' %}active{% endif %}">
+                            <span class="nav-item-icon">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>
+                            </span>
+                            <span>About</span>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-model-line">model yolov8n · ppe</div>
+                <div class="user-snippet">
+                    <div class="user-avatar">{{ (session.get('username') or 'AD')[:2]|upper }}</div>
+                    <div class="user-details">
+                        <div class="user-name">{{ session.get('full_name') or 'Lead Inspector' }}</div>
+                        <div class="user-role-badge">{{ session.get('role') or 'ADMIN' }}</div>
+                    </div>
+                    <form method="post" action="{{ url_for('logout') }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="sidebar-logout-btn" title="Sign Out" aria-label="Sign Out">
+                            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="app-main">
+            <!-- Top App Bar -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-label="Open navigation">
+                        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <nav class="header-crumb" aria-label="Breadcrumb">
+                        <span class="crumb-group">{{ crumb_group }}</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-title">{% block page_title %}SafetyVision{% endblock %}</span>
+                    </nav>
+                    <div hidden>{% block page_subtitle %}{% endblock %}</div>
+                    <div class="live-status-pill" {% if active_page == 'live' %}hidden{% endif %}>
+                        <div class="pulse-dot"></div>
+                        <span>SYSTEM ACTIVE</span>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <!-- Model Status Pill -->
+                    <div class="header-model-pill">
+                        <span class="model-dot"></span>
+                        <span class="model-name">YOLOv8n</span>
+                        <span style="color:var(--text-muted);">· 10 Classes</span>
+                    </div>
+
+                    <!-- Audio Mute / Unmute Toggle Button -->
+                    <button class="header-btn" id="btn-sound-toggle" title="Toggle Alert Chime">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 5 6 9H2v6h4l5 4V5Z"/>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        </svg>
+                    </button>
+
+                    <!-- Light / Dark Theme Toggle Button -->
+                    <button class="header-btn" id="btn-theme-toggle" aria-label="Toggle light or dark theme" title="Toggle Theme">
+                        <span class="theme-toggle-icon" id="theme-toggle-icon">
+                            <svg id="icon-theme-sun" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                            </svg>
+                            <svg id="icon-theme-moon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                <path d="M12 3a6.36 6.36 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                            </svg>
+                        </span>
+                    </button>
+
+                    <!-- Notifications Link -->
+                        <a href="/notifications" class="header-btn" title="View Notifications">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        {% if unread_notifs_count|default(0) > 0 %}
+                        <span class="header-badge-count">{{ unread_notifs_count }}</span>
+                        {% endif %}
+                    </a>
+
+                    <!-- Live Monitoring Quick Action -->
+                    <a href="/live" class="btn btn-primary btn-sm" style="gap:6px;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m22 8-6 4 6 4V8Z"/>
+                            <rect width="14" height="12" x="2" y="6" rx="2"/>
+                        </svg>
+                        Live Feed
+                    </a>
+                </div>
+            </header>
+
+            <!-- Page Body Content -->
+            <div class="page-body">
+                <div class="page-inner">
+                    <header class="app-page-heading">
+                        <h1>{{ self.page_title()|striptags|trim }}</h1>
+                        {% set page_context = self.page_subtitle()|striptags|trim %}
+                        {% if page_context %}<p>{{ page_context }}</p>{% endif %}
+                    </header>
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Slide-out Detailed Drawer for Tracked Person -->
+    <div id="person-detail-drawer" class="detail-drawer">
+        <div class="drawer-header">
+            <div>
+                <h3 id="drawer-person-id" style="font-family:var(--font-display); font-size:1.15rem; font-weight:700;">Person #</h3>
+                <span id="drawer-risk-level" class="badge badge-low">LOW RISK</span>
+            </div>
+            <button onclick="closePersonDrawer()" style="font-size:1.4rem; color:var(--text-muted);">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <!-- Key Scores -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+                <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md);">
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">PPE COMPLIANCE</div>
+                    <div id="drawer-compliance-val" style="font-size:1.4rem; font-weight:700; color:var(--primary-text);">100%</div>
+                </div>
+                <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md);">
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">DYNAMIC RISK</div>
+                    <div id="drawer-risk-val" style="font-size:1.4rem; font-weight:700; color:var(--critical);">0/100</div>
+                </div>
+            </div>
+
+            <!-- PPE Status Breakdown -->
+            <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:10px; text-transform:uppercase; color:var(--text-muted);">PPE Verification</h4>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                    <span style="font-size:0.85rem; font-weight:500;">Hardhat</span>
+                    <span id="drawer-hardhat-status"><span class="badge badge-low">PRESENT</span></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                    <span style="font-size:0.85rem; font-weight:500;">Protective Mask</span>
+                    <span id="drawer-mask-status"><span class="badge badge-low">PRESENT</span></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                    <span style="font-size:0.85rem; font-weight:500;">Safety Vest</span>
+                    <span id="drawer-vest-status"><span class="badge badge-low">PRESENT</span></span>
+                </div>
+            </div>
+
+            <!-- Spatial Context -->
+            <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:10px; text-transform:uppercase; color:var(--text-muted);">Environmental Context</h4>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem; margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Current Zone:</span>
+                    <span id="drawer-zone" style="font-weight:600;">Shop Floor</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Session Duration:</span>
+                    <span id="drawer-duration" style="font-weight:600;">0s</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Machinery Hazard:</span>
+                    <span id="drawer-machinery" style="font-weight:600;">Safe</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Vehicle Proximity:</span>
+                    <span id="drawer-vehicle" style="font-weight:600;">Safe</span>
+                </div>
+            </div>
+
+            <!-- Active Violations -->
+            <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:8px; text-transform:uppercase; color:var(--text-muted);">Active Violations</h4>
+            <ul id="drawer-violations-list" style="list-style:none; padding:0;">
+                <li style="color:var(--safe); font-size:0.8rem;">&#10003; No Active Violations</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+    <script>
+      (function () {
+        var btn = document.getElementById('mobile-nav-toggle');
+        var backdrop = document.getElementById('nav-backdrop');
+        if (!btn) return;
+        function close() { document.body.classList.remove('nav-open'); }
+        btn.addEventListener('click', function () { document.body.classList.toggle('nav-open'); });
+        if (backdrop) backdrop.addEventListener('click', close);
+        document.querySelectorAll('.app-sidebar .nav-item').forEach(function (a) { a.addEventListener('click', close); });
+      })();
+    </script>
+</body>
+</html>

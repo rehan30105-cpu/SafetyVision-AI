@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Laptop Webcam | SafetyVision AI{% endblock %}
+{% block page_title %}Laptop Webcam Sensor Station{% endblock %}
+{% block page_subtitle %}Hardware Diagnostics, Optical Resolution & Video Stream Validation{% endblock %}
+
+{% block content %}
+<!-- Explanatory Header for Project Evaluators -->
+<div class="card" style="margin-bottom:20px; border-left:4px solid var(--primary);">
+    <div class="card-body" style="padding:14px 20px; font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">
+        <b style="color:var(--text-primary);"> Hardware Setup:</b> This project utilizes your <b>Laptop's Built-in Web Camera</b> as the primary optical video sensor for real-time edge detection and compliance verification. All performance, resolution, and frame rate numbers displayed below reflect your actual hardware.
+    </div>
+</div>
+
+<!-- Camera Error Banner (Hidden by default) -->
+<div id="camera-error-banner" style="display:none; background:var(--critical-subtle); border:1px solid var(--critical-border); color:var(--critical-text); padding:12px 16px; border-radius:var(--radius-md); font-size:0.85rem; font-weight:600; margin-bottom:16px;"></div>
+
+<!-- Main Laptop Webcam Diagnostic Station -->
+<div style="display:grid; grid-template-columns: 2.2fr 1.3fr; gap: 20px;">
+    <!-- Live Viewport Card -->
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.3rem;"></span>
+                <div>
+                    <div class="card-title" style="font-size:1rem;">Laptop Integrated Webcam</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">Internal USB / PCI Optical Device</div>
+                </div>
+            </div>
+            <div id="camera-status-pill" class="badge" style="background:var(--bg-card-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle); font-size:0.78rem;">
+                ● READY
+            </div>
+        </div>
+
+        <div class="card-body" style="padding:16px;">
+            <!-- Video Viewport -->
+            <div id="video-viewport-wrapper" style="position:relative; width:100%; min-height:420px; background:#0A0A0A; border-radius:var(--radius-md); overflow:hidden; display:flex; align-items:center; justify-content:center;">
+                <video id="cam-test-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; display:block;"></video>
+                <canvas id="cam-test-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></canvas>
+            </div>
+
+            <!-- Action Controls -->
+            <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
+                <button id="btn-stream-start" class="btn btn-primary" onclick="startWebcamStation()">
+                    <span>▶ Start Camera</span>
+                </button>
+                <button id="btn-stream-stop" class="btn btn-danger" onclick="stopWebcamStation()" style="display:none;">
+                    <span>⏹ Stop Camera</span>
+                </button>
+                <a href="/live" class="btn btn-outline" style="margin-left:auto;">
+                    <span> Go to Live Monitoring &rarr;</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hardware Specifications Card -->
+    <div>
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <div class="card-title" style="font-size:0.95rem;"> Measured Hardware Telemetry</div>
+            </div>
+            <div class="card-body" style="font-size:0.85rem; line-height:2.1;">
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:4px 0;">
+                    <span style="color:var(--text-muted);">Active Camera:</span>
+                    <span style="font-weight:700; color:var(--text-primary);">Laptop Built-in Webcam</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:4px 0;">
+                    <span style="color:var(--text-muted);">Optical Resolution:</span>
+                    <span id="camera-measured-res" style="font-weight:600; font-family:var(--font-mono);">Standby (e.g. 1280 × 720)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:4px 0;">
+                    <span style="color:var(--text-muted);">Measured FPS:</span>
+                    <span id="hud-fps" style="font-weight:700; color:var(--safe);">0.0 FPS</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:4px 0;">
+                    <span style="color:var(--text-muted);">Detection Speed:</span>
+                    <span id="hud-latency" style="font-weight:700; color:var(--primary-text);">0.0 ms</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:4px 0;">
+                    <span style="color:var(--text-muted);">AI Model Status:</span>
+                    <span style="font-weight:600; color:var(--safe);">YOLOv8n Active (10 Classes)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:4px 0;">
+                    <span style="color:var(--text-muted);">Device Type:</span>
+                    <span style="font-weight:600;">{{ model_info.device }} ({{ model_info.device_name }})</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demonstration Checklist -->
+        <div class="card" style="margin-bottom:0;">
+            <div class="card-header">
+                <div class="card-title" style="font-size:0.95rem;">&#10003; Evaluator Test Checklist</div>
+            </div>
+            <div class="card-body" style="font-size:0.8rem; color:var(--text-secondary); line-height:1.7;">
+                <ol style="padding-left:18px;">
+                    <li>Click <b>Start Camera</b> to verify browser permissions.</li>
+                    <li>Observe the live stream preview and resolution detection.</li>
+                    <li>Verify detection speed and FPS update accurately.</li>
+                    <li>Switch to <b>Live Monitoring</b> to test person-wise PPE results.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/detection.js"></script>
+<script>
+const webcamMonitor = new SafetyVisionMonitor({
+    videoId: 'cam-test-video',
+    canvasId: 'cam-test-canvas'
+});
+
+function startWebcamStation() {
+    webcamMonitor.startWebcam();
+}
+
+function stopWebcamStation() {
+    webcamMonitor.stop();
+}
+</script>
+{% endblock %}

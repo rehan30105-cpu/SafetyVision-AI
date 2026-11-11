@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Heatmap | SafetyVision AI{% endblock %}
+{% block page_title %}Spatial Safety Heatmap{% endblock %}
+{% block page_subtitle %}Visual Density of Workplace Infractions, Near-Misses & Zone Breaches{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body" style="padding:14px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:0.85rem; color:var(--text-secondary);">
+            Spatial mapping constructed from real incident coordinates and zone boundaries recorded in the database.
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; font-size:0.75rem;">
+            <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10B981;"></span> Low Frequency</span>
+            <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#F59E0B;"></span> Moderate</span>
+            <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#EF4444;"></span> High Hazard Hotspot</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"> Facility Floor Plan & Hazard Density Overlay</div>
+        <button class="btn btn-outline btn-sm" onclick="exportHeatmapSnapshot()">Export PNG</button>
+    </div>
+    <div class="card-body" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        {% if heatmap_data and heatmap_data|length > 0 %}
+        <div style="position:relative; width:100%; max-width:850px; height:500px; background:#141414; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-md);">
+            <!-- Floor Plan Grid Canvas -->
+            <canvas id="heatmap-canvas" width="850" height="500" style="width:100%; height:100%;"></canvas>
+            
+            <div style="position:absolute; bottom:14px; left:14px; background:rgba(10,10,10,0.85); backdrop-filter:blur(6px); padding:8px 14px; border-radius:var(--radius-md); font-size:0.75rem; color:#949494; border:1px solid rgba(255,255,255,0.1);">
+                Plotted <b>{{ heatmap_data|length }}</b> validated spatial incidents from system database
+            </div>
+        </div>
+        {% else %}
+        <div style="padding:60px 20px; text-align:center; color:var(--text-muted);">
+            <div style="font-size:2.5rem; margin-bottom:12px;"></div>
+            <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Spatial Incident Data Available</h3>
+            <p style="font-size:0.85rem; max-width:480px; margin:0 auto 16px auto;">
+                No violations or zone breaches have been captured yet. Run live detection streams or upload test frames to populate real hazard heat coordinates.
+            </p>
+            <a href="/live" class="btn btn-primary btn-sm">Go to Live Monitoring &rarr;</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if heatmap_data and heatmap_data|length > 0 %}
+<script>
+const hmData = {{ heatmap_json|safe }};
+const hCanvas = document.getElementById('heatmap-canvas');
+const hCtx = hCanvas.getContext('2d');
+
+function renderHeatmap() {
+    const w = hCanvas.width;
+    const h = hCanvas.height;
+
+    // 1. Draw Architectural Floor Plan Grid
+    hCtx.fillStyle = '#141414';
+    hCtx.fillRect(0, 0, w, h);
+
+    hCtx.strokeStyle = 'rgba(64, 64, 64, 0.6)';
+    hCtx.lineWidth = 1;
+    for (let x = 0; x < w; x += 40) {
+        hCtx.beginPath();
+        hCtx.moveTo(x, 0);
+        hCtx.lineTo(x, h);
+        hCtx.stroke();
+    }
+    for (let y = 0; y < h; y += 40) {
+        hCtx.beginPath();
+        hCtx.moveTo(0, y);
+        hCtx.lineTo(w, y);
+        hCtx.stroke();
+    }
+
+    // Draw Floor Structural Elements
+    hCtx.strokeStyle = '#414141';
+    hCtx.lineWidth = 2;
+    hCtx.strokeRect(30, 30, w - 60, h - 60);
+
+    hCtx.fillStyle = '#949494';
+    hCtx.font = 'bold 12px Inter, sans-serif';
+    hCtx.fillText("ZONE 01: MAIN WALKWAY", 50, 60);
+    hCtx.fillText("ZONE 02: STAMPING PRESS BAY", w / 2 + 20, 60);
+    hCtx.fillText("ZONE 03: VEHICLE PASSAGE", w / 2 + 20, h - 50);
+    hCtx.fillText("ZONE 04: SUBSTATION (RESTRICTED)", 50, h - 50);
+
+    // 2. Draw Incident Radial Heat Gradients from Real Database Coordinates
+    hmData.forEach(pt => {
+        const px = pt.x * w;
+        const py = pt.y * h;
+        const radius = pt.risk > 70 ? 55 : (pt.risk > 40 ? 40 : 28);
+
+        const grad = hCtx.createRadialGradient(px, py, 0, px, py, radius);
+        if (pt.risk >= 80) {
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.65)');
+            grad.addColorStop(0.5, 'rgba(239, 68, 68, 0.25)');
+            grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+        } else if (pt.risk >= 50) {
+            grad.addColorStop(0, 'rgba(245, 158, 11, 0.6)');
+            grad.addColorStop(0.5, 'rgba(245, 158, 11, 0.2)');
+            grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+        } else {
+            grad.addColorStop(0, 'rgba(16, 185, 129, 0.55)');
+            grad.addColorStop(0.5, 'rgba(16, 185, 129, 0.15)');
+            grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+        }
+
+        hCtx.fillStyle = grad;
+        hCtx.beginPath();
+        hCtx.arc(px, py, radius, 0, Math.PI * 2);
+        hCtx.fill();
+
+        // Center Point
+        hCtx.beginPath();
+        hCtx.arc(px, py, 3, 0, Math.PI * 2);
+        hCtx.fillStyle = '#FFFFFF';
+        hCtx.fill();
+    });
+}
+
+function exportHeatmapSnapshot() {
+    const link = document.createElement('a');
+    link.download = `SafetyVision_Heatmap_${Date.now()}.png`;
+    link.href = hCanvas.toDataURL('image/png');
+    link.click();
+    showToast('Export Complete', 'Heatmap image saved to downloads', 'INFO');
+}
+
+renderHeatmap();
+</script>
+{% endif %}
+{% endblock %}

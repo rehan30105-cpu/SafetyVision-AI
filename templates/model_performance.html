@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Model Performance | SafetyVision AI{% endblock %}
+{% block page_title %}AI Model Performance & Diagnostics{% endblock %}
+{% block page_subtitle %}Inference Latency, Hardware Accelerators, Class Definitions & Operational Benchmarks{% endblock %}
+
+{% block content %}
+<!-- Real Live Inference Metrics Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-title">Current Inference Latency</div>
+        <div class="kpi-value" style="color:var(--primary-text);">{{ stats.last_latency_ms }}<span style="font-size:1rem; color:var(--text-muted);"> ms</span></div>
+        <div class="kpi-footer">Per frame compute time</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Average Latency</div>
+        <div class="kpi-value">{{ stats.average_latency_ms }}<span style="font-size:1rem; color:var(--text-muted);"> ms</span></div>
+        <div class="kpi-footer">Cumulative running average</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Throughput (FPS)</div>
+        <div class="kpi-value" style="color:var(--safe);">{{ stats.current_fps }}<span style="font-size:1rem; color:var(--text-muted);"> FPS</span></div>
+        <div class="kpi-footer">Processed video rate</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Total Inferences Run</div>
+        <div class="kpi-value">{{ stats.total_inferences }}</div>
+        <div class="kpi-footer">Frames evaluated</div>
+    </div>
+</div>
+
+<!-- Hardware & Model Specifications -->
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><div class="card-title"> Inference Hardware Environment</div></div>
+        <div class="card-body" style="font-size:0.85rem; line-height:2;">
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Device Type:</span>
+                <span style="font-weight:700;">{{ stats.device }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Processor / Hardware:</span>
+                <span style="font-weight:600;">{{ stats.device_name }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Framework:</span>
+                <span style="font-weight:600;">PyTorch + Ultralytics YOLOv8n</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Inference Image Size:</span>
+                <span style="font-weight:600;">640 &times; 640 px (auto-letterbox)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span style="color:var(--text-muted);">System Uptime:</span>
+                <span style="font-weight:600;">{{ stats.uptime_seconds }} seconds</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Official Validation Metrics Card -->
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><div class="card-title"> Dataset Validation Metrics</div></div>
+        <div class="card-body" style="font-size:0.85rem; line-height:2;">
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Model Checkpoint:</span>
+                <span style="font-weight:600; font-family:var(--font-mono);">best.pt (Trained Custom Weights)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Supported Classes:</span>
+                <span style="font-weight:700; color:var(--primary-text);">10 Distinct Semantic Classes</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">Average Detection Confidence:</span>
+                <span style="font-weight:600;">{{ (stats.average_confidence * 100)|round(1) }}%</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding:6px 0;">
+                <span style="color:var(--text-muted);">mAP50 Validation:</span>
+                <span style="color:var(--text-muted); font-style:italic;">Not available in standalone checkpoint</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span style="color:var(--text-muted);">Precision / Recall:</span>
+                <span style="color:var(--text-muted); font-style:italic;">Not available in standalone checkpoint</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Architecture & Pipeline Flowchart -->
+<div class="card">
+    <div class="card-header"><div class="card-title"> Edge Inference & Spatial Reasoning Architecture</div></div>
+    <div class="card-body" style="font-size:0.85rem; line-height:1.7; color:var(--text-secondary);">
+        <p style="margin-bottom:12px;">
+            SafetyVision AI goes far beyond basic object detection. The multi-stage pipeline decouples vision detection from safety domain reasoning:
+        </p>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px;">
+            <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md);">
+                <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">1. YOLOv8n Backbone</div>
+                <div style="font-size:0.78rem;">Single-pass detection of 10 PPE, personnel, vehicle and hazard classes.</div>
+            </div>
+            <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md);">
+                <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">2. Centroid/IoU Tracker</div>
+                <div style="font-size:0.78rem;">Continuous multi-person session tracking without storing biometric facial data.</div>
+            </div>
+            <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md);">
+                <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">3. Spatial PPE Engine</div>
+                <div style="font-size:0.78rem;">Anatomical head, face, and torso containment logic linking PPE to tracked workers.</div>
+            </div>
+            <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-md);">
+                <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">4. Dynamic Risk Engine</div>
+                <div style="font-size:0.78rem;">Deterministic 0-100 risk scoring factoring machinery proximity, zones, and duration.</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

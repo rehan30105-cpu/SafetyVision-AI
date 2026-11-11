@@ -1,0 +1,134 @@
+# ==============================================================================
+# SAFETYVISION AI — .gitignore
+# ==============================================================================
+
+# --- Secrets & Environment Variables (NEVER COMMIT) ---
+.env
+.env.*
+!.env.example
+*.local
+
+# --- Python Build & Cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# --- Database & Persistent Storage (NEVER COMMIT LOCAL DATABASES) ---
+safetyvision.db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.db-journal
+instance/
+backups/
+
+# --- Private Reports, Uploads & Evidence Data ---
+static/reports/*
+!static/reports/.gitkeep
+static/uploads/*
+!static/uploads/.gitkeep
+static/evidence/*
+!static/evidence/.gitkeep
+
+# --- Runtime Logs & Diagnostic Dumps ---
+*.log
+*.err.log
+*.stdout.log
+*.stderr.log
+*.err
+*.out
+flask_err.txt
+flask_out.txt
+flask_process.txt
+flask_routes.txt
+flask_run.log
+routes.txt
+out.txt
+err.txt
+dt_err.txt
+dt_out.txt
+telegram_lines.txt
+static_files.txt
+template_files.txt
+tmp_list.txt
+_srv.txt
+_srv_err.txt
+_ttc.txt
+_ttc2.txt
+_ttc2_err.txt
+_ttc_err.txt
+_dt_skill_raw.txt
+_tmp_desktop_*.txt
+
+# --- Temporary / Scratch Scripts & Validation Files ---
+_*
+_*.py
+browser_test.py
+browser_test_detection.py
+check_env.py
+check_syntax.py
+js_check_*.js
+screenshot_*.py
+send_telegram_sample.py
+test_accuracy_consistency.py
+test_core_detection_repair.py
+test_demo_workflow.py
+test_e2e_pipeline.py
+test_empty_render.py
+test_full_qa.py
+test_live_notification.py
+test_qa_validation.py
+test_report_annotation.py
+test_snap.py
+test_system.py
+test_telegram_service.py
+test_theme_contrast.py
+test_video_api.py
+test_video_flow.py
+test_video_overlay_fix.py
+test_video_scenarios.py
+validate_analytics.py
+validate_detection.py
+zoom_gauge.py
+
+# --- Screen captures, recording frames & test visual artifacts ---
+*.png
+*.jpg
+*.jpeg
+!static/assets/images/*.png
+!static/assets/images/*.jpg
+!static/assets/images/*.jpeg
+!static/assets/images/*.svg
+
+# --- Backup Files & Non-Production Trees ---
+*.backup
+*.backup2
+*.bak
+*.bak-*
+backup_*/
+deploy_hf/
+frontend_dist/
+models/best.pt.zip
+
+# --- Editors, IDE & OS Artifacts ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.agents/
+.tmp_claude/
+
+# --- Test Caches ---
+.pytest_cache/
+pytest_cache/
+.coverage
+htmlcov/

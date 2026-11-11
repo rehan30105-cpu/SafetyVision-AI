@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Demo Requests - SafetyVision AI{% endblock %}
+{% block page_title %}Demo Requests{% endblock %}
+{% block page_subtitle %}Review access requests and track notifications separately from decisions{% endblock %}
+
+{% block content %}
+<div class="sv-demo-page">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<div class="sv-demo-flashes">{% for category, message in messages %}<div class="alert alert-{{ category }}" role="status">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+
+  <header class="sv-demo-heading">
+    <div><span class="sv-demo-eyebrow">ACCESS ADMINISTRATION</span><h1>Demo requests</h1><p>Review new applicants, make a decision, and monitor delivery status without leaving the queue.</p></div>
+    <span class="sv-demo-queue-count">{{ request_counts.TOTAL|default(0) }} total</span>
+  </header>
+
+  <section class="sv-demo-stats" aria-label="Request totals">
+    {% for key,label,tone in [('PENDING','Pending','warning'),('APPROVED','Approved','success'),('REJECTED','Rejected','danger'),('TOTAL','Total requests','neutral')] %}
+      <article class="sv-demo-stat {{ tone }}"><span>{{ label }}</span><strong>{{ request_counts[key]|default(0) }}</strong></article>
+    {% endfor %}
+  </section>
+
+  <section class="sv-demo-queue" aria-labelledby="sv-demo-queue-title">
+    <div class="sv-demo-queue-header">
+      <div><h2 id="sv-demo-queue-title">Request queue</h2><p>Approval creates an active normal-user account for applicants who chose a password. Legacy requests retain the one-time setup-link flow.</p></div>
+      <form class="sv-demo-filters" method="get" action="{{ url_for('admin_demo_requests') }}" role="search">
+        <label class="sv-demo-search"><span class="sr-only">Search applicants</span><input type="search" name="q" value="{{ query_q }}" placeholder="Name, email, organization…"></label>
+        <label><span class="sr-only">Filter by status</span><select name="status"><option value="">All statuses</option>{% for state in ['PENDING','APPROVED','REJECTED'] %}<option value="{{ state }}" {% if query_status == state %}selected{% endif %}>{{ state|title }}</option>{% endfor %}</select></label>
+        <button class="btn btn-outline btn-sm" type="submit">Apply</button>
+        {% if query_q or query_status %}<a class="sv-demo-clear" href="{{ url_for('admin_demo_requests') }}">Clear</a>{% endif %}
+      </form>
+    </div>
+
+    {% if requests_list %}
+    <div class="sv-demo-table-wrap">
+      <table class="sv-demo-table">
+        <thead><tr><th scope="col">Applicant</th><th scope="col">Organization &amp; purpose</th><th scope="col">Submitted</th><th scope="col">Decision</th><th scope="col">Notifications</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+        {% for item in requests_list %}
+          <tr class="sv-demo-row" data-request-id="{{ item.id }}">
+            <td data-label="Applicant"><div class="sv-demo-applicant"><strong>{{ item.name }}</strong><a href="mailto:{{ item.email }}">{{ item.email }}</a></div></td>
+            <td data-label="Organization &amp; purpose"><div class="sv-demo-org">{{ item.company or '—' }}</div><div class="sv-demo-purpose"><strong>{{ item.role }}</strong>{% if item.message %}<span>{{ item.message }}</span>{% endif %}</div></td>
+            <td data-label="Submitted"><time class="sv-demo-date">{{ item.created_at }}</time></td>
+            <td data-label="Decision"><span class="sv-demo-status {% if item.status == 'PENDING' %}pending{% elif item.status == 'APPROVED' %}approved{% else %}rejected{% endif %}">{{ item.status|title }}</span>
+              {% if item.reviewed_at %}<small class="sv-demo-review-meta">Reviewed {{ item.reviewed_at }}{% if item.reviewer_name %} by {{ item.reviewer_name }}{% endif %}</small>{% endif %}
+              {% if item.review_notes %}<small class="sv-demo-review-meta">Note: {{ item.review_notes }}</small>{% endif %}
+            </td>
+            <td data-label="Notifications" class="sv-demo-notifications">
+              <div><span>Applicant email</span><b class="sv-demo-mail-state {{ 'failed' if item.request_email_status == 'FAILED' else 'accepted' if item.request_email_status == 'ACCEPTED' else 'unknown' }}">{{ item.request_email_status|title }}</b>{% if item.request_email_error %}<small>{{ item.request_email_error }}</small>{% endif %}</div>
+              <div><span>Admin email</span><b class="sv-demo-mail-state {{ 'failed' if item.admin_email_status == 'FAILED' else 'accepted' if item.admin_email_status == 'ACCEPTED' else 'unknown' }}">{{ item.admin_email_status|title }}</b>{% if item.admin_email_error %}<small>{{ item.admin_email_error }}</small>{% endif %}</div>
+              <div><span>Telegram</span><b class="sv-demo-mail-state {{ 'failed' if item.telegram_approval_status == 'FAILED' else 'accepted' if item.telegram_approval_status == 'SENT' else 'unknown' }}">{{ item.telegram_approval_status|title }}</b>{% if item.telegram_approval_error %}<small>{{ item.telegram_approval_error }}</small>{% endif %}</div>
+              {% if item.status != 'PENDING' %}<div><span>Decision email</span><b class="sv-demo-mail-state {{ 'failed' if item.decision_email_status == 'FAILED' else 'accepted' if item.decision_email_status == 'ACCEPTED' else 'unknown' }}">{{ item.decision_email_status|title }}</b>{% if item.decision_email_error %}<small>{{ item.decision_email_error }}</small>{% endif %}</div>{% endif %}
+              {% if item.activated_at %}<small>Account activated {{ item.activated_at }}</small>{% endif %}
+            </td>
+            <td data-label="Actions" class="sv-demo-actions">
+              {% if item.status == 'PENDING' %}
+                <form class="sv-demo-action-form" method="post" action="{{ url_for('admin_demo_request_review', request_id=item.id) }}" data-confirm="Confirm this access request decision?" data-busy="Saving decision…">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="form_token" value="{{ decision_tokens[item.id|string] }}">
+                  <button class="btn btn-primary btn-sm" type="submit" name="decision" value="APPROVED">Approve</button>
+                  <button class="btn btn-outline btn-sm sv-demo-reject" type="submit" name="decision" value="REJECTED">Reject</button>
+                </form>
+              {% endif %}
+              {% if item.status == 'PENDING' and item.telegram_approval_status in ('UNKNOWN','FAILED') %}<form method="post" action="{{ url_for('admin_demo_request_telegram_retry', request_id=item.id) }}" data-confirm="Send or retry this Telegram approval notification?" data-busy="Sending…"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline btn-sm" type="submit">Retry Telegram</button></form>{% endif %}
+              {% for category,mail_status in [('REQUEST',item.request_email_status),('ADMIN',item.admin_email_status),('DECISION',item.decision_email_status)] %}{% if mail_status == 'FAILED' and (category != 'DECISION' or item.status != 'PENDING') %}<form method="post" action="{{ url_for('admin_demo_request_email_retry', request_id=item.id) }}" data-confirm="Retry the {{ category|lower }} email for {{ item.email }}?" data-busy="Retrying…"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="category" value="{{ category }}"><button class="btn btn-outline btn-sm" type="submit">Retry {{ category|lower }} email</button></form>{% endif %}{% endfor %}
+              {% if item.status == 'APPROVED' and not item.activated_at and not item.account_count and not item.has_password %}<form method="post" action="{{ url_for('admin_demo_request_activation_link', request_id=item.id) }}" data-confirm="Issue a one-time password setup link to {{ item.email }}?" data-busy="Issuing…"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="form_token" value="{{ activation_tokens[item.id|string] }}"><button class="btn btn-outline btn-sm" type="submit">Issue setup link</button></form>{% endif %}
+              {% if item.status != 'PENDING' and item.decision_email_status != 'FAILED' and not item.activated_at %}<span class="sv-demo-no-action">No action required</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="sv-demo-empty"><span class="sv-demo-empty-mark" aria-hidden="true">✓</span><h3>{% if query_q or query_status %}No matching requests{% else %}Queue is clear{% endif %}</h3><p>{% if query_q or query_status %}Try a different search term or status filter.{% else %}New access requests will appear here when submitted.{% endif %}</p>{% if query_q or query_status %}<a class="btn btn-outline btn-sm" href="{{ url_for('admin_demo_requests') }}">Clear filters</a>{% endif %}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.sv-demo-page form[data-confirm]').forEach(function(form) {
+  form.addEventListener('submit', function(event) {
+    if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+    if (!window.confirm(form.dataset.confirm)) { event.preventDefault(); return; }
+    var submitter = event.submitter;
+    if (submitter && submitter.name === 'decision') {
+      var decisionField = document.createElement('input');
+      decisionField.type = 'hidden';
+      decisionField.name = 'decision';
+      decisionField.value = submitter.value;
+      form.appendChild(decisionField);
+      submitter.removeAttribute('name');
+    }
+    form.dataset.submitting = 'true';
+    form.querySelectorAll('button[type="submit"]').forEach(function(button) {
+      button.disabled = true;
+      button.dataset.originalText = button.textContent;
+      button.textContent = form.dataset.busy || 'Working…';
+    });
+  });
+});
+</script>
+{% endblock %}

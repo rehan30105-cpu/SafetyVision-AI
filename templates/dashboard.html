@@ -1,0 +1,338 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Dashboard | SafetyVision AI{% endblock %}
+{% block page_title %}Safety Overview Dashboard{% endblock %}
+{% block page_subtitle %}All-time PPE compliance summary from completed detection sessions{% endblock %}
+
+{% block content %}
+<div class="sv-scope">
+    <div class="sv-scope-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+    <div class="sv-scope-body">
+        <strong>Dashboard Scope:</strong>
+        {{ dashboard_scope|default('Your account') }} view. All-time PPE compliance and safety scores use completed sessions in this scope.
+        <span class="sv-scope-hint" tabindex="0" aria-label="Safety Score formula details" data-tooltip="Safety Score Formula: 100 - (0.35 × avg risk + 0.35 × (100 - compliance%) + 0.30 × critical share%). N/A means no data.">&#9432; Formula details</span>
+    </div>
+    <a href="/live" class="btn btn-primary btn-sm" style="flex-shrink:0; white-space:nowrap;">Run Live Detection</a>
+</div>
+
+
+<div class="sv-kpi-grid dashboard-kpi-grid">
+
+    <div class="sv-kpi" tabindex="0" aria-label="People Observed metric details" data-tooltip="Person-observations summed across all completed sessions. Not cross-session unique identities.">
+        <div class="sv-kpi-top">
+            <span class="sv-kpi-label">People Observed</span>
+            <div class="sv-kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+        </div>
+        <div class="kpi-value sv-kpi-value">{{ kpis.people_observed|default(0) }}</div>
+        <div class="sv-kpi-foot"><span class="sv-badge blue">All Sessions</span><span>Person observations</span></div>
+    </div>
+
+    <div class="sv-kpi" tabindex="0" aria-label="PPE Compliance metric details" data-tooltip="Compliant people divided by assessed people, multiplied by 100. N/A when no assessments exist.">
+        <div class="sv-kpi-top">
+            <span class="sv-kpi-label">PPE Compliance</span>
+            <div class="sv-kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+        </div>
+        <div class="kpi-value sv-kpi-value">
+            {% if kpis.ppe_compliance is not none %}
+                <span style="color:{% if kpis.ppe_compliance >= 80 %}var(--safe-bright){% elif kpis.ppe_compliance >= 60 %}var(--warning){% else %}var(--critical){% endif %};">{{ kpis.ppe_compliance }}%</span>
+            {% else %}
+                <span style="font-size:1.5rem; color:var(--text-muted);">N/A</span>
+            {% endif %}
+        </div>
+        <div class="sv-kpi-foot">
+            <span class="sv-badge {% if kpis.ppe_compliance is none %}badge-medium{% elif kpis.ppe_compliance >= 80 %}badge-low{% else %}badge-critical{% endif %}">
+                {% if kpis.ppe_compliance is none %}No Sessions{% elif kpis.ppe_compliance >= 80 %}Good Standing{% else %}Violations Found{% endif %}
+            </span>
+            <span>3-gear per person</span>
+        </div>
+    </div>
+
+    <div class="sv-kpi" tabindex="0" aria-label="Violation Events metric details" data-tooltip="Distinct confirmed violation episodes. One row per episode. Unresolved means the incident is still open.">
+        <div class="sv-kpi-top">
+            <span class="sv-kpi-label">Violation Events</span>
+            <div class="sv-kpi-icon">
+                <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+            </div>
+        </div>
+        <div class="kpi-value sv-kpi-value" style="color:var(--warning);">{{ kpis.total_violations|default(0) }}</div>
+        <div class="sv-kpi-foot">
+            <span class="sv-badge gray">{{ kpis.unresolved_count|default(0) }} Unresolved</span>
+            <span>All-time episodes</span>
+        </div>
+    </div>
+
+    <div class="sv-kpi" tabindex="0" aria-label="Critical Hazards metric details" data-tooltip="Confirmed incidents classified CRITICAL under the risk policy, including multiple missing PPE items or proximity to active machinery or vehicles.">
+        <div class="sv-kpi-top">
+            <span class="sv-kpi-label">Critical Hazards</span>
+            <div class="sv-kpi-icon">
+                <svg viewBox="0 0 24 24"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+            </div>
+        </div>
+        <div class="kpi-value sv-kpi-value" style="color:var(--critical);">{{ kpis.critical_incidents|default(0) }}</div>
+        <div class="sv-kpi-foot"><span class="sv-badge red">CRITICAL severity</span><span>All-time confirmed</span></div>
+    </div>
+
+    <div class="sv-kpi" tabindex="0" aria-label="Safety Score metric details" data-tooltip="Experimental project index from 0 to 100 based on risk level, compliance, and critical incidents. N/A when there is no data.">
+        <div class="sv-kpi-top">
+            <span class="sv-kpi-label">Safety Score <span style="font-size:0.62rem; background:var(--primary-subtle); color:var(--primary-text); padding:1px 5px; border-radius:4px;">exp.</span></span>
+            <div class="sv-kpi-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+            </div>
+        </div>
+        <div class="kpi-value sv-kpi-value" style="color:var(--primary-text);">
+            {% if kpis.safety_score is not none %}{{ kpis.safety_score }}<span style="font-size:1rem; color:var(--text-muted);">/100</span>
+            {% else %}<span style="font-size:1.5rem; color:var(--text-muted);">N/A</span>{% endif %}
+        </div>
+        <div class="sv-kpi-foot">
+            <span class="sv-badge {% if kpis.safety_score is none %}badge-medium{% elif kpis.safety_score >= 80 %}badge-low{% elif kpis.safety_score >= 60 %}badge-medium{% else %}badge-critical{% endif %}">
+                {% if kpis.safety_score is none %}No Data{% elif kpis.safety_score >= 80 %}Good Standing{% elif kpis.safety_score >= 60 %}Moderate Risk{% else %}Critical Risk{% endif %}
+            </span>
+            <span>Project Index</span>
+        </div>
+    </div>
+</div>
+
+<div class="sv-charts">
+    <div class="sv-panel">
+        <div class="sv-panel-head" style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+            <div>
+                <div class="sv-panel-title">PPE Compliance by Equipment Type</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">% of assessed people with each PPE item confirmed present</div>
+            </div>
+            <span class="sv-panel-scope" title="Aggregated across all completed detection sessions">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                All Sessions
+            </span>
+        </div>
+        <div class="sv-panel-body">
+            {% if has_sessions %}
+            <canvas id="chart-ppe-gear" style="max-height: 250px; height:250px;"></canvas>
+            {% else %}
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; color:var(--text-muted);">
+                <div style="font-weight:600;">No completed detection sessions</div>
+                <div style="font-size:0.76rem; margin-top:4px;">Compliance rates are unavailable until people have been assessed.</div>
+                <a href="/detection" style="font-size:0.8rem; margin-top:8px; color:var(--color-accent-text);">Analyze an image or video</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="sv-panel">
+        <div class="sv-panel-head" style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+            <div>
+                <div class="sv-panel-title">Missing PPE Distribution</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">Count of missing items across assessments (multiple missing items counted individually)</div>
+            </div>
+            <span class="sv-panel-scope" title="Aggregated across all completed detection sessions">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                All Sessions
+            </span>
+        </div>
+        <div class="sv-panel-body">
+            {% set total_v = (charts_json.hh_violations|default(0)) + (charts_json.mask_violations|default(0)) + (charts_json.vest_violations|default(0)) %}
+            {% if total_v > 0 %}
+            <div class="sv-donut-layout">
+                <div class="sv-donut-wrap">
+                    <canvas id="chart-viol-dist" style="max-height: 220px; height:220px;"></canvas>
+                    <div class="sv-donut-center">
+                        <div class="sv-donut-total">{{ total_v }}</div>
+                        <div class="sv-donut-cap">Total Missing PPE</div>
+                    </div>
+                </div>
+                <div class="sv-viol-legend">
+                    <div class="sv-viol-row"><span class="sv-viol-dot" style="background:#EF4444"></span><span class="sv-viol-name">Hardhat</span><span class="sv-viol-count">{{ charts_json.hh_violations|default(0) }}</span><span class="sv-viol-pct">{{ ((charts_json.hh_violations|default(0) / total_v * 100)|round(1)) }}%</span></div>
+                    <div class="sv-viol-row"><span class="sv-viol-dot" style="background:#F97316"></span><span class="sv-viol-name">Mask</span><span class="sv-viol-count">{{ charts_json.mask_violations|default(0) }}</span><span class="sv-viol-pct">{{ ((charts_json.mask_violations|default(0) / total_v * 100)|round(1)) }}%</span></div>
+                    <div class="sv-viol-row"><span class="sv-viol-dot" style="background:#F5B942"></span><span class="sv-viol-name">Safety Vest</span><span class="sv-viol-count">{{ charts_json.vest_violations|default(0) }}</span><span class="sv-viol-pct">{{ ((charts_json.vest_violations|default(0) / total_v * 100)|round(1)) }}%</span></div>
+                </div>
+            </div>
+            {% else %}
+            <div class="sv-empty-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; color:var(--text-muted);">
+                {% if has_sessions %}
+                <div style="font-weight:600; color:var(--safe-text);">No PPE violations on record</div>
+                <div style="font-size:0.75rem; margin-top:4px;">No missing PPE items were recorded in assessed sessions.</div>
+                {% else %}
+                <div style="font-weight:600;">No PPE assessments yet</div>
+                <div style="font-size:0.75rem; margin-top:4px;">Run a detection to establish a compliance record.</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <div class="sv-panel-title">Recent Confirmed Safety Incidents</div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">One row per violation episode; no frame-level duplicates</div>
+        </div>
+        <a href="/incidents" class="btn btn-outline btn-sm">View All &rarr;</a>
+    </div>
+    <div class="table-responsive">
+        <table class="sv-table">
+            <thead>
+                <tr><th>Incident ID</th><th>Time</th><th>Person</th><th>Missing Equipment</th><th>Risk Level</th><th>Status</th><th>Evidence</th></tr>
+            </thead>
+            <tbody>
+                {% if recent_incidents %}
+                    {% for inc in recent_incidents %}
+                    <tr>
+                        <td style="font-family:var(--font-mono); font-weight:700; color:var(--primary-text);">{{ inc.incident_uid }}</td>
+                        <td>{{ inc.timestamp }}</td>
+                        <td><span style="font-weight:700;">Person #{{ inc.person_tracking_id }}</span></td>
+                        <td><span style="font-weight:600; color:{% if inc.severity == 'CRITICAL' %}var(--critical){% elif inc.severity == 'HIGH' %}var(--high){% else %}var(--warning){% endif %};">{{ inc.violation_type }}</span></td>
+                        <td><span class="sv-badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+                        <td><span class="sv-badge {% if inc.status == 'RESOLVED' %}badge-low{% elif inc.status == 'FALSE_POSITIVE' %}badge-medium{% else %}badge-critical{% endif %}">{{ inc.status }}</span></td>
+                        <td>{% if inc.evidence_image %}<a href="/{{ inc.evidence_image }}" target="_blank" class="btn btn-outline btn-sm" style="padding:2px 8px;">View</a>{% else %}<span style="color:var(--text-muted); font-size:0.75rem;">None</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-muted);">
+                        <div style="font-size:1.6rem; margin-bottom:6px;"><span style="color:var(--safe);">&#10003;</span></div>
+                        {% if kpis.people_observed|default(0) > 0 %}No violation incidents recorded for assessed personnel.{% else %}No confirmed incidents or completed assessments yet.{% endif %}
+                    </td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="sv-footer">
+    <span class="sv-footer-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><b>Last Updated:</b> <span id="sv-last-updated"></span></span>
+    <span class="sv-footer-item"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Showing data from completed detection sessions</span>
+    <span class="sv-footer-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg><b>Total observations:</b> {{ kpis.people_observed|default(0) }}</span>
+    <span class="sv-footer-item"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg><b>Data source:</b> Local Database</span>
+</div>
+<script>
+(function(){var el=document.getElementById('sv-last-updated');if(el){var d=new Date();var p=n=>String(n).padStart(2,'0');el.textContent=d.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}})();
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartData = {{ charts_json|tojson }};
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const animOff = document.documentElement.getAttribute('data-anim') === 'off';
+const noAnim = reduceMotion || animOff;
+const svToken = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const svGrid = svToken('--border-subtle');
+const svTick = svToken('--text-secondary');
+const svText = svToken('--text-primary');
+const svTooltipBg = svToken('--color-elevated');
+const svChartSeparator = svToken('--color-chart-separator');
+
+{% if has_sessions %}
+const rawRates = [chartData.hh_rate, chartData.mask_rate, chartData.vest_rate];
+const ppeRates = rawRates.map(rate => rate === null || rate === undefined ? null : rate);
+// Equipment colours distinguish classes without implying risk severity.
+const gearBase = ['#C77731', '#497AA6', '#547E5B'];
+const svTickStrong = svText;
+// Above-bar labels preserve N/A when an equipment rate is not available.
+const ppeLabelsPlugin = {
+    id: 'ppeLabels',
+    afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta) return;
+        meta.data.forEach((bar, i) => {
+            const v = rawRates[i];
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.font = '600 13px "IBM Plex Sans", system-ui, sans-serif';
+            ctx.fillStyle = svToken('--text-primary');
+            ctx.fillText(v === null || v === undefined ? 'N/A' : Math.round(v) + '%', bar.x, bar.y - 8);
+            ctx.restore();
+        });
+    }
+};
+new Chart(document.getElementById('chart-ppe-gear'), {
+    type: 'bar',
+    plugins: [ppeLabelsPlugin],
+    data: {
+        labels: ['Hardhat', 'Protective Mask', 'Safety Vest'],
+        datasets: [{
+            label: 'Compliance %', data: ppeRates,
+            backgroundColor: ctx => gearBase[ctx.dataIndex],
+            hoverBackgroundColor: gearBase,
+            borderRadius: 8, borderSkipped: false, maxBarThickness: 62,
+            categoryPercentage: 0.6, barPercentage: 0.85
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 22, bottom: 2 } },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: svTooltipBg,
+                titleColor: svText,
+                bodyColor: svTick,
+                borderColor: svGrid,
+                borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: false,
+                callbacks: {
+                    label: ctx => {
+                        const v = rawRates[ctx.dataIndex];
+                        const label = v === null || v === undefined ? 'N/A (no assessments)' : v + '% compliant';
+                        return label;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: svGrid, drawTicks: false }, border: { display: false }, ticks: { color: svTick, padding: 8, callback: v => v + '%', font: { size: 11 } } },
+            x: { grid: { display: false }, border: { color: svGrid }, ticks: { color: svTick, font: { size: 12, weight: '600' }, padding: 6 } }
+        },
+        animation: noAnim ? false : { duration: 350, easing: 'easeOutQuart' }
+    }
+});
+{% endif %}
+
+{% set total_v = (charts_json.hh_violations|default(0)) + (charts_json.mask_violations|default(0)) + (charts_json.vest_violations|default(0)) %}
+{% if total_v > 0 %}
+const violVals = [chartData.hh_violations || 0, chartData.mask_violations || 0, chartData.vest_violations || 0];
+const violBase = ['#EF4444', '#F97316', '#F5B942'];
+new Chart(document.getElementById('chart-viol-dist'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Missing Hardhat', 'Missing Mask', 'Missing Safety Vest'],
+        datasets: [{
+            data: violVals,
+            backgroundColor: violBase,
+            hoverBackgroundColor: ['#F87171', '#FB923C', '#F7D08A'],
+            borderColor: svChartSeparator,
+            borderWidth: 1,
+            hoverOffset: 2,
+            hoverBorderColor: svChartSeparator
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        layout: { padding: 6 },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: svTooltipBg,
+                titleColor: svText,
+                bodyColor: svTick,
+                borderColor: svGrid,
+                borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
+                callbacks: {
+                    label: ctx => {
+                        const total = violVals.reduce((a, b) => a + b, 0) || 1;
+                        const pct = (ctx.raw / total * 100).toFixed(1);
+                        return ` ${ctx.raw} (${pct}%)`;
+                    }
+                }
+            }
+        },
+        animation: noAnim ? false : { animateRotate: true, animateScale: false, duration: 350 }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

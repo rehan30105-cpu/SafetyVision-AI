@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Zones | SafetyVision AI{% endblock %}
+{% block page_title %}Safety Zones & Polygon Enforcement{% endblock %}
+{% block page_subtitle %}Define Physical Risk Perimeters, Mandate Zone-Specific PPE & Track Zone Breaches{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div style="font-size:0.88rem; color:var(--text-secondary);">
+        Configure spatial geofences on the shop floor. When tracked personnel cross polygon perimeters, zone-specific PPE requirements and risk multipliers are autonomously enforced.
+    </div>
+    <button class="btn btn-primary" onclick="openZoneModal()">+ Create Safety Zone</button>
+</div>
+
+<!-- Active Zones Grid -->
+<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; margin-bottom: 24px;">
+    {% for zone in zones %}
+    <div class="card" style="margin-bottom:0; border-top: 4px solid {% if zone.zone_type == 'RESTRICTED' %}#EF4444{% elif zone.zone_type == 'MACHINERY' %}#EC4899{% elif zone.zone_type == 'VEHICLE' %}#8D531C{% else %}#FF941F{% endif %};">
+        <div class="card-header">
+            <div>
+                <div class="card-title">{{ zone.name }}</div>
+                <span class="badge {% if zone.zone_type == 'RESTRICTED' %}badge-critical{% elif zone.zone_type == 'MACHINERY' %}badge-high{% else %}badge-medium{% endif %}">
+                    {{ zone.zone_type }} ZONE
+                </span>
+            </div>
+            <div>
+                <button class="btn btn-outline btn-sm" onclick="deleteZone({{ zone.id }})" title="Delete"></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">{{ zone.description }}</p>
+
+            <div style="margin-bottom:10px;">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:4px;">MANDATED PPE GEAR</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    {% set ppe_items = zone.required_ppe|fromjson %}
+                    {% for ppe in ppe_items %}
+                    <span class="badge badge-low">&#10003; {{ ppe }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-muted); border-top:1px solid var(--border-subtle); padding-top:10px;">
+                <span>Hazard Multiplier: <b>{{ zone.risk_multiplier }}x</b></span>
+                <span>Status: <b style="color:var(--safe);">{% if zone.is_active %}ACTIVE{% else %}DISABLED{% endif %}</b></span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Interactive Polygon Drawing Canvas Viewport -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"> Interactive Spatial Polygon Visualizer</div>
+        <div style="font-size:0.78rem; color:var(--text-muted);">Click points on canvas to trace custom safety polygon</div>
+    </div>
+    <div class="card-body" style="display:flex; flex-direction:column; align-items:center;">
+        <div style="position:relative; width:100%; max-width:800px; height:450px; background:#141414; border-radius:var(--radius-md); overflow:hidden;">
+            <canvas id="zone-editor-canvas" width="800" height="450" style="width:100%; height:100%; cursor:crosshair;"></canvas>
+            <div style="position:absolute; bottom:12px; left:12px; display:flex; gap:8px;">
+                <button class="btn btn-outline btn-sm" style="background:rgba(10,10,10,0.8); color:#fff;" onclick="clearEditorCanvas()">Clear Points</button>
+                <button class="btn btn-primary btn-sm" onclick="exportPolygonPoints()">Apply Points to Modal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Zone Modal -->
+<div id="modal-zone" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--color-overlay); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); width:460px; max-width:90%; padding:24px; box-shadow:var(--shadow-lg);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+            <h3 style="font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:var(--text-primary);">Create Safety Zone</h3>
+            <button onclick="closeZoneModal()" style="font-size:1.2rem; color:var(--text-muted);">&times;</button>
+        </div>
+        <form action="/api/zones/create" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-group">
+                <label class="form-label">Zone Name</label>
+                <input type="text" name="name" required class="form-control" placeholder="e.g. Stamping Press Enclosure">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Zone Category</label>
+                <select name="zone_type" class="form-control">
+                    <option value="ENTRY">ENTRY (Check & Walkway)</option>
+                    <option value="PPE_CHECK">PPE CHECK (Gate Audit)</option>
+                    <option value="MACHINERY">MACHINERY (High Hazard)</option>
+                    <option value="VEHICLE">VEHICLE (Transit & Loading)</option>
+                    <option value="CONSTRUCTION">CONSTRUCTION (Active Work)</option>
+                    <option value="RESTRICTED">RESTRICTED (No Entry Without Permit)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Facility location context..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mandatory PPE Gear</label>
+                <div style="display:flex; gap:12px; font-size:0.85rem;">
+                    <label><input type="checkbox" name="ppe" value="Hardhat" checked> Hardhat</label>
+                    <label><input type="checkbox" name="ppe" value="Safety Vest" checked> Safety Vest</label>
+                    <label><input type="checkbox" name="ppe" value="Mask"> Mask</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Hazard Multiplier</label>
+                <input type="number" step="0.1" name="risk_multiplier" class="form-control" value="1.2">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Polygon Coordinates (JSON)</label>
+                <input type="text" id="input-polygon-coords" name="polygon_coords" class="form-control" value="[[0.1, 0.1], [0.6, 0.1], [0.6, 0.7], [0.1, 0.7]]">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                <button type="button" class="btn btn-outline" onclick="closeZoneModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Zone</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openZoneModal() {
+    document.getElementById('modal-zone').style.display = 'flex';
+}
+function closeZoneModal() {
+    document.getElementById('modal-zone').style.display = 'none';
+}
+
+async function deleteZone(zoneId) {
+    if (confirm('Are you sure you want to delete this safety zone?')) {
+        const res = await fetch(`/api/zones/${zoneId}/delete`, { method: 'POST', headers: { 'X-CSRF-Token': '{{ csrf_token }}' } });
+        if (res.ok) {
+            window.location.reload();
+        }
+    }
+}
+
+// Polygon Interactive Drawing
+const edCanvas = document.getElementById('zone-editor-canvas');
+const edCtx = edCanvas.getContext('2d');
+let currentPoints = [];
+
+edCanvas.addEventListener('click', (e) => {
+    const rect = edCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    currentPoints.push([parseFloat(x.toFixed(3)), parseFloat(y.toFixed(3))]);
+    drawEditorPoints();
+});
+
+function drawEditorPoints() {
+    edCtx.clearRect(0, 0, edCanvas.width, edCanvas.height);
+
+    if (currentPoints.length === 0) return;
+
+    edCtx.beginPath();
+    edCtx.moveTo(currentPoints[0][0] * edCanvas.width, currentPoints[0][1] * edCanvas.height);
+    for (let i = 1; i < currentPoints.length; i++) {
+        edCtx.lineTo(currentPoints[i][0] * edCanvas.width, currentPoints[i][1] * edCanvas.height);
+    }
+    if (currentPoints.length >= 3) {
+        edCtx.closePath();
+        edCtx.fillStyle = 'rgba(255, 148, 31, 0.25)';
+        edCtx.fill();
+    }
+    edCtx.strokeStyle = '#FF941F';
+    edCtx.lineWidth = 2;
+    edCtx.stroke();
+
+    // Draw vertex handles
+    currentPoints.forEach(pt => {
+        edCtx.beginPath();
+        edCtx.arc(pt[0] * edCanvas.width, pt[1] * edCanvas.height, 5, 0, Math.PI * 2);
+        edCtx.fillStyle = '#FFFFFF';
+        edCtx.fill();
+        edCtx.strokeStyle = '#E87F0B';
+        edCtx.stroke();
+    });
+}
+
+function clearEditorCanvas() {
+    currentPoints = [];
+    edCtx.clearRect(0, 0, edCanvas.width, edCanvas.height);
+}
+
+function exportPolygonPoints() {
+    if (currentPoints.length < 3) {
+        showToast('Notice', 'Click at least 3 points to form a closed polygon', 'WARNING');
+        return;
+    }
+    document.getElementById('input-polygon-coords').value = JSON.stringify(currentPoints);
+    openZoneModal();
+    showToast('Success', 'Polygon points copied to zone creation dialog', 'INFO');
+}
+</script>
+{% endblock %}

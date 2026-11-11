@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Incident Management | SafetyVision AI{% endblock %}
+{% block page_title %}Incident Management & Lifecycle{% endblock %}
+{% block page_subtitle %}Audit Trail, Root-Cause Actioning & Evidence Verification{% endblock %}
+
+{% block content %}
+<!-- Filter Toolbar -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body" style="padding:14px 20px;">
+        <form method="GET" action="/incidents" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+            <div style="flex:1; min-width:200px;">
+                <input type="text" name="q" value="{{ query_q }}" class="form-control" placeholder="Search Incident UID, Person #, Violation...">
+            </div>
+            <div>
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="DETECTED" {% if query_status == 'DETECTED' %}selected{% endif %}>DETECTED</option>
+                    <option value="ACKNOWLEDGED" {% if query_status == 'ACKNOWLEDGED' %}selected{% endif %}>ACKNOWLEDGED</option>
+                    <option value="IN_PROGRESS" {% if query_status == 'IN_PROGRESS' %}selected{% endif %}>IN PROGRESS</option>
+                    <option value="RESOLVED" {% if query_status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
+                    <option value="FALSE_POSITIVE" {% if query_status == 'FALSE_POSITIVE' %}selected{% endif %}>FALSE POSITIVE</option>
+                </select>
+            </div>
+            <div>
+                <select name="severity" class="form-control">
+                    <option value="">All Severities</option>
+                    <option value="CRITICAL" {% if query_severity == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+                    <option value="HIGH" {% if query_severity == 'HIGH' %}selected{% endif %}>HIGH</option>
+                    <option value="MEDIUM" {% if query_severity == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+                    <option value="LOW" {% if query_severity == 'LOW' %}selected{% endif %}>LOW</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            <a href="/incidents" class="btn btn-outline btn-sm">Reset</a>
+            <a href="/api/incidents/export-csv?q={{ query_q|urlencode }}&status={{ query_status|urlencode }}&severity={{ query_severity|urlencode }}" class="btn btn-outline btn-sm" style="margin-left:auto;"> Export CSV</a>
+        </form>
+    </div>
+</div>
+
+<!-- Incidents Table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Incident UID</th>
+                    <th>Timestamp</th>
+                    <th>Person ID</th>
+                    <th>Violation Category</th>
+                    <th>Risk</th>
+                    <th>Zone & Camera</th>
+                    <th>Duration</th>
+                    <th>Status Lifecycle</th>
+                    <th>Evidence</th>
+                    <th>Manage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if incidents %}
+                    {% for inc in incidents %}
+                    <tr>
+                        <td style="font-family:var(--font-mono); font-weight:700; color:var(--primary-text); white-space:nowrap;">{{ inc.incident_uid }}</td>
+                        <td style="white-space:nowrap;">{{ inc.timestamp }}</td>
+                        <td><span style="font-weight:700;">#{{ inc.person_tracking_id }}</span></td>
+                        <td>
+                            <span style="font-weight:600; color:{% if inc.severity == 'CRITICAL' %}var(--critical){% elif inc.severity == 'HIGH' %}var(--high){% else %}var(--primary-text){% endif %};">
+                                {{ inc.violation_type }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ inc.severity|lower }}">{{ inc.risk_score }}/100 [{{ inc.severity }}]</span>
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <div>{{ inc.zone_name or 'Main Floor' }}</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">{{ inc.camera_name or 'Cam 01' }}</div>
+                        </td>
+                        <td>{{ inc.duration_seconds }}s</td>
+                        <td>
+                            <span class="badge {% if inc.status == 'RESOLVED' %}badge-low{% elif inc.status == 'IN_PROGRESS' %}badge-medium{% elif inc.status == 'FALSE_POSITIVE' %}badge{% else %}badge-critical{% endif %}">
+                                {{ inc.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if inc.evidence_image %}
+                            <a href="/{{ inc.evidence_image }}" target="_blank" class="btn btn-outline btn-sm" style="padding:2px 8px;"> View</a>
+                            {% else %}
+                            <span style="color:var(--text-muted); font-size:0.75rem;">None</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" style="padding:3px 8px;" onclick="openLifecycleModal({{ inc.id }}, '{{ inc.incident_uid }}', '{{ inc.status }}', '{{ inc.resolution_notes or '' }}')">
+                                Action
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="10" style="text-align:center; padding:36px; color:var(--text-muted);">
+                            No incident records match the current criteria.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal for Incident Lifecycle Status Update -->
+<div id="modal-lifecycle" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--color-overlay); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); width:460px; max-width:90%; padding:24px; box-shadow:var(--shadow-lg);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+            <h3 id="lifecycle-title" style="font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:var(--text-primary);">Update Incident</h3>
+            <button onclick="closeLifecycleModal()" style="font-size:1.2rem; color:var(--text-muted);">&times;</button>
+        </div>
+        <form id="form-lifecycle" action="/api/incidents/update-status" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="incident_id" id="modal-inc-id">
+            
+            <div class="form-group">
+                <label class="form-label">Lifecycle Status</label>
+                <select name="status" id="modal-status-select" class="form-control">
+                    <option value="DETECTED">DETECTED (System Initial)</option>
+                    <option value="ACKNOWLEDGED">ACKNOWLEDGED (Supervisor Notified)</option>
+                    <option value="IN_PROGRESS">IN PROGRESS (Floor Dispatch)</option>
+                    <option value="RESOLVED">RESOLVED (Corrective Action Complete)</option>
+                    <option value="FALSE_POSITIVE">FALSE POSITIVE (Dismissed)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Corrective Resolution Notes</label>
+                <textarea name="resolution_notes" id="modal-notes" class="form-control" rows="3" placeholder="Describe root-cause mitigation and PPE supply action..."></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                <button type="button" class="btn btn-outline" onclick="closeLifecycleModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Incident</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openLifecycleModal(id, uid, currentStatus, notes) {
+    document.getElementById('modal-inc-id').value = id;
+    document.getElementById('lifecycle-title').textContent = `Manage Incident ${uid}`;
+    document.getElementById('modal-status-select').value = currentStatus;
+    document.getElementById('modal-notes').value = notes;
+    document.getElementById('modal-lifecycle').style.display = 'flex';
+}
+
+function closeLifecycleModal() {
+    document.getElementById('modal-lifecycle').style.display = 'none';
+}
+</script>
+{% endblock %}

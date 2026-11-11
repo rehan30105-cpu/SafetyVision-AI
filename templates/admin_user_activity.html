@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Account activity | SafetyVision AI{% endblock %}
+{% block page_title %}Account activity{% endblock %}
+{% block page_subtitle %}Administrator view scoped to one selected account{% endblock %}
+{% block content %}
+<div class="sv-admin-account">
+  <div class="sv-admin-account-head"><div><span class="sv-demo-eyebrow">ACCOUNT-SCOPED VIEW · ADMIN</span><h1>{{ user.full_name or user.username }}</h1><p>{{ user.email }} · {{ user.role }} · {{ 'Active' if user.is_active else 'Disabled' }}</p></div><a class="btn btn-outline btn-sm" href="{{ url_for('user_management') }}">Back to users</a></div>
+  <div class="sv-demo-stats" aria-label="Selected account totals"><article class="sv-demo-stat neutral"><span>Completed sessions</span><strong>{{ stats.total_sessions }}</strong></article><article class="sv-demo-stat neutral"><span>People observed*</span><strong>{{ stats.total_people }}</strong></article><article class="sv-demo-stat warning"><span>PPE violations</span><strong>{{ stats.total_violations }}</strong></article><article class="sv-demo-stat danger"><span>Critical sessions</span><strong>{{ stats.total_critical }}</strong></article></div>
+  <p class="sv-admin-account-note">*People Observed is the sum of per-session person observations, not unique identities across separate sessions. Existing legacy records with unknown owners are intentionally excluded.</p>
+  <section class="sv-demo-queue"><div class="sv-demo-queue-header"><div><h2>Detection sessions</h2><p>Most recent sessions owned by this account.</p></div></div>
+    {% if sessions %}<div class="sv-demo-table-wrap"><table class="sv-demo-table"><thead><tr><th>Session</th><th>Type / source</th><th>People</th><th>Violations</th><th>Date</th><th>Details</th></tr></thead><tbody>{% for item in sessions %}<tr><td data-label="Session"><strong>{{ item.session_uid }}</strong></td><td data-label="Type / source">{{ item.session_type }} · {{ item.source_name or '—' }}</td><td data-label="People">{{ item.people_count }}</td><td data-label="Violations">{{ item.display_violation_count }}</td><td data-label="Date">{{ item.created_at }}</td><td data-label="Details"><a href="{{ url_for('session_detail', session_uid=item.session_uid) }}">Open session</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="sv-demo-empty"><h3>No owned sessions</h3><p>This account has no recorded detection sessions.</p></div>{% endif %}
+  </section>
+  <section class="sv-demo-queue"><div class="sv-demo-queue-header"><div><h2>Incidents</h2><p>Incidents explicitly associated with this account.</p></div></div>
+    {% if incidents %}<div class="sv-demo-table-wrap"><table class="sv-demo-table"><thead><tr><th>Incident</th><th>Violation</th><th>Severity</th><th>Status</th><th>Recorded</th></tr></thead><tbody>{% for item in incidents %}<tr><td data-label="Incident">{{ item.incident_uid }}</td><td data-label="Violation">{{ item.violation_type }}</td><td data-label="Severity">{{ item.severity }}</td><td data-label="Status">{{ item.status }}</td><td data-label="Recorded">{{ item.timestamp }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="sv-demo-empty"><h3>No owned incidents</h3><p>Incidents without a verified owner are excluded from this account view.</p></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: safetyvision-ai
+    runtime: python
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEGRAM_APPROVAL_WEBHOOK_SECRET
+        generateValue: true
+      - key: TELEGRAM_ENABLED
+        value: "true"
+      - key: TELEGRAM_APPROVAL_ENABLED
+        value: "true"
+      - key: TELEGRAM_APPROVAL_POLLING_ENABLED
+        value: "false"
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TELEGRAM_APPROVAL_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_APPROVAL_CHAT_ID
+        sync: false
+      - key: TELEGRAM_APPROVAL_ADMIN_USER_ID
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM_EMAIL
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: SafetyVision AI
+      - key: ADMIN_EMAIL
+        sync: false

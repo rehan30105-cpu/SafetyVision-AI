@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}User Settings | SafetyVision AI{% endblock %}
+{% block page_title %}Your settings{% endblock %}
+{% block page_subtitle %}Manage your account details and appearance preference{% endblock %}
+
+{% block head %}
+<style>
+    .user-settings { max-width: 860px; margin: 0 auto; padding: 8px 0 40px; }
+    .user-settings-intro { margin: 0 0 28px; color: var(--text-secondary); line-height: 1.65; }
+    .user-settings-section { margin: 0 0 20px; padding: 24px; }
+    .user-settings-section h2 { margin: 0 0 6px; font: 600 1.05rem var(--font-main); color: var(--text-primary); }
+    .user-settings-section > p { margin: 0 0 20px; color: var(--text-muted); font-size: .88rem; }
+    .user-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .user-settings-readonly { padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-card-subtle); }
+    .user-settings-readonly dt { margin-bottom: 4px; color: var(--text-muted); font-size: .75rem; }
+    .user-settings-readonly dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+    .user-settings-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+    .user-settings-theme { display: flex; flex-wrap: wrap; gap: 10px; }
+    .user-settings-theme button { min-width: 112px; padding: 10px 16px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); cursor: pointer; font: 500 .88rem var(--font-main); }
+    .user-settings-theme button[aria-pressed="true"] { border-color: var(--accent); color: var(--primary-text); box-shadow: inset 0 0 0 1px var(--accent); }
+    .user-settings-note { margin: 12px 0 0; color: var(--text-muted); font-size: .8rem; }
+    .user-settings-session { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    @media (max-width: 640px) {
+        .user-settings-section { padding: 18px; }
+        .user-settings-grid { grid-template-columns: 1fr; }
+        .user-settings-session { align-items: flex-start; flex-direction: column; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="user-settings">
+    <p class="user-settings-intro">Your account information is private to your signed-in account. System configuration and administration controls are not available here.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}<div class="card" role="status" style="padding:14px 18px; margin-bottom:18px; border-left:3px solid var(--accent);">{{ messages[-1] }}</div>{% endif %}
+    {% endwith %}
+
+    <section class="card user-settings-section" aria-labelledby="user-account-heading">
+        <h2 id="user-account-heading">Account</h2>
+        <p>Your name can be updated. Your sign-in email is managed by your administrator.</p>
+        <dl class="user-settings-grid">
+            <div class="user-settings-readonly"><dt>Email</dt><dd>{{ user.email }}</dd></div>
+            <div class="user-settings-readonly"><dt>Username</dt><dd>{{ user.username }}</dd></div>
+        </dl>
+        <form action="{{ url_for('update_user_settings_profile') }}" method="post" style="margin-top:18px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-group">
+                <label class="form-label" for="user-full-name">Display name</label>
+                <input class="form-control" id="user-full-name" name="full_name" type="text" maxlength="120" required autocomplete="name" value="{{ user.full_name or '' }}">
+            </div>
+            <div class="user-settings-actions"><button class="btn btn-primary" type="submit">Save display name</button></div>
+        </form>
+    </section>
+
+    <section class="card user-settings-section" aria-labelledby="user-password-heading">
+        <h2 id="user-password-heading">Change password</h2>
+        <p>Confirm your current password before choosing a new one of at least 12 characters.</p>
+        <form action="{{ url_for('update_user_settings_password') }}" method="post" autocomplete="on">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="user-settings-grid">
+                <div class="form-group"><label class="form-label" for="current-password">Current password</label><input class="form-control" id="current-password" name="current_password" type="password" required autocomplete="current-password"></div>
+                <div class="form-group"><label class="form-label" for="new-password">New password</label><input class="form-control" id="new-password" name="new_password" type="password" minlength="12" maxlength="256" required autocomplete="new-password"></div>
+                <div class="form-group"><label class="form-label" for="confirm-password">Confirm new password</label><input class="form-control" id="confirm-password" name="confirm_password" type="password" minlength="12" maxlength="256" required autocomplete="new-password"></div>
+            </div>
+            <div class="user-settings-actions"><button class="btn btn-primary" type="submit">Update password</button></div>
+        </form>
+    </section>
+
+    <section class="card user-settings-section" aria-labelledby="user-appearance-heading">
+        <h2 id="user-appearance-heading">Appearance</h2>
+        <p>Choose how SafetyVision AI is displayed in this browser. System follows your device appearance setting.</p>
+        <div class="user-settings-theme" role="group" aria-label="Theme preference">
+            <button type="button" data-theme-mode="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme-mode="dark" aria-pressed="false">Dark</button>
+            <button type="button" data-theme-mode="system" aria-pressed="false">System</button>
+        </div>
+        <p class="user-settings-note" id="theme-status" aria-live="polite">Theme preference is saved in this browser.</p>
+    </section>
+
+    <section class="card user-settings-section user-settings-session" aria-labelledby="user-session-heading">
+        <div><h2 id="user-session-heading">Session</h2><p style="margin-bottom:0;">Sign out of this SafetyVision AI session.</p></div>
+        <form action="{{ url_for('logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-primary" type="submit">Sign out</button>
+        </form>
+    </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.user-settings-theme [data-theme-mode]').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var mode = button.getAttribute('data-theme-mode');
+        try { localStorage.setItem('sv_theme', mode); } catch (e) { /* storage may be unavailable */ }
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode);
+        document.querySelectorAll('[data-theme-mode]').forEach(function (control) {
+            var selected = control.getAttribute('data-theme-mode') === mode;
+            control.setAttribute('aria-pressed', String(selected));
+            control.classList.toggle('active', selected);
+        });
+        document.getElementById('theme-status').textContent = 'Theme preference saved in this browser.';
+    });
+});
+var initialThemeMode = 'light';
+try {
+    var savedThemeMode = localStorage.getItem('sv_theme');
+    if (['light', 'dark', 'system'].indexOf(savedThemeMode) !== -1) initialThemeMode = savedThemeMode;
+} catch (e) { /* storage may be unavailable */ }
+document.querySelectorAll('.user-settings-theme [data-theme-mode]').forEach(function (control) {
+    control.setAttribute('aria-pressed', String(control.getAttribute('data-theme-mode') === initialThemeMode));
+});
+</script>
+{% endblock %}

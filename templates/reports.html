@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Audit Reports | SafetyVision AI{% endblock %}
+{% block page_title %}Safety Audit Reports{% endblock %}
+{% block page_subtitle %}{{ report_scope|default('Your account') }} detections · Individual session documents and consolidated report{% endblock %}
+
+{% block content %}
+<!-- Section 1: Overall Safety Report Card -->
+<div class="card" style="margin-bottom: 24px; border: 1px solid var(--primary-border); background: var(--bg-card);">
+    <div class="card-body" style="padding: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div style="max-width: 650px;">
+                <div style="display:inline-flex; align-items:center; gap:8px; padding:4px 10px; background:var(--primary-subtle); border:1px solid var(--primary-border); border-radius:20px; font-size:0.75rem; font-weight:700; color:var(--primary-text); text-transform:uppercase; margin-bottom:8px;">
+                    <span>Consolidated Workplace Audit</span>
+                </div>
+                <h2 style="font-size:1.35rem; font-weight:700; color:var(--text-primary); margin:0 0 8px 0;">Overall Safety Compliance Report</h2>
+                <p style="font-size:0.875rem; color:var(--text-secondary); margin:0; line-height:1.6;">
+                    Consolidated {{ report_scope|default('account') }} report for completed Image, Video, and Live Monitoring sessions. Counts are person-observations per session, not cross-session identities.
+                </p>
+                <div style="display:flex; gap:20px; margin-top:14px; font-size:0.82rem; color:var(--text-secondary); flex-wrap:wrap;">
+                    <div><b>Total Sessions:</b> <span style="color:var(--primary-text); font-weight:700;">{{ stats.total_sessions }}</span></div>
+                    <div><b>Persons Analyzed:</b> <span style="color:var(--primary-text); font-weight:700;">{{ stats.total_people }}</span></div>
+                    <div><b>Overall Compliance:</b> <span style="color:var(--safe-bright); font-weight:700;">{% if stats.total_people %}{{ stats.overall_compliance }}%{% else %}N/A{% endif %}</span></div>
+                    <div title="Individually missing PPE items across completed sessions"><b>PPE Violations (items):</b> <span style="color:var(--critical); font-weight:700;">{{ stats.total_violations }}</span></div>
+                </div>
+            </div>
+            <div>
+                <a href="/reports/overall/download" class="btn btn-primary" style="padding: 12px 24px; font-weight: 700; display:inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 12px rgba(255,148,31,0.24);">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    DOWNLOAD OVERALL REPORT (PDF)
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2: Individual Session Reports -->
+<div class="card" style="margin-bottom:16px;">
+    <div class="card-body" style="padding:14px 20px;">
+        <form method="GET" action="/reports" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+            <div style="flex:1; min-width:200px;">
+                <input type="text" name="q" value="{{ query_q or '' }}" class="form-control" placeholder="Search Session ID, filename...">
+            </div>
+            <div>
+                <select name="type" class="form-control" title="Session type">
+                    <option value="">All Types</option>
+                    <option value="IMAGE" {% if query_type == 'IMAGE' %}selected{% endif %}>IMAGE</option>
+                    <option value="VIDEO" {% if query_type == 'VIDEO' %}selected{% endif %}>VIDEO</option>
+                    <option value="LIVE" {% if query_type == 'LIVE' %}selected{% endif %}>LIVE</option>
+                </select>
+            </div>
+            <div>
+                <input type="date" name="date" value="{{ query_date or '' }}" class="form-control" title="Filter by date">
+            </div>
+            <div>
+                <select name="status" class="form-control" title="Compliance status">
+                    <option value="">All Statuses</option>
+                    <option value="COMPLIANT" {% if query_status == 'COMPLIANT' %}selected{% endif %}>ALL COMPLIANT</option>
+                    <option value="VIOLATION" {% if query_status == 'VIOLATION' %}selected{% endif %}>PPE VIOLATION</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            <a href="/reports" class="btn btn-outline btn-sm">Reset</a>
+        </form>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <div class="card-title" style="display:flex; align-items:center; gap:8px;">
+                <span>Individual Detection Session Reports</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">
+                Each PDF contains strictly isolated results, person-wise breakdown, and evidence for that specific session.
+            </div>
+        </div>
+        <span class="badge" style="background:var(--bg-card-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle); font-weight:600;">{{ sessions|length }} Sessions Available</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Type</th>
+                    <th>Date & Time</th>
+                    <th>People Analyzed</th>
+                    <th>Compliance</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if sessions %}
+                    {% for s in sessions %}
+                    <tr>
+                        <td style="white-space:nowrap;">
+                            <a href="/session/{{ s.session_uid }}" style="font-family:var(--font-mono); font-weight:700; color:var(--primary-text); text-decoration:none;">
+                                {{ s.session_uid }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if s.session_type == 'IMAGE' %}
+                                <span class="badge" style="background:var(--primary-subtle); color:var(--primary-text); border:1px solid var(--primary-border); font-weight:700;">IMAGE</span>
+                            {% elif s.session_type == 'VIDEO' %}
+                                <span class="badge" style="background:var(--primary-subtle); color:var(--primary-text); border:1px solid var(--primary-border); font-weight:700;">VIDEO</span>
+                            {% else %}
+                                <span class="badge" style="background:var(--high-subtle); color:var(--high-text); border:1px solid var(--high-border); font-weight:700;">LIVE</span>
+                            {% endif %}
+                        </td>
+                        <td style="color:var(--text-secondary); font-size:0.85rem; white-space:nowrap;">{{ s.created_at }}</td>
+                        <td>
+                            <div style="font-weight:600; color:var(--text-primary);">{{ s.people_count }} Persons</div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary);">
+                                {{ s.compliant_count }} Compliant &bull; {{ s.display_violation_count|default(s.violation_count) }} Violations
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="font-weight:700; font-size:0.9rem; color: {% if s.overall_compliance >= 100 %}var(--safe-bright){% elif s.overall_compliance >= 70 %}var(--warning){% else %}var(--critical){% endif %};">
+                                    {{ s.overall_compliance }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if s.violation_count == 0 %}
+                                <span class="badge" style="background:var(--safe-subtle); color:var(--safe-text); border:1px solid var(--safe-border); font-weight:700;">ALL COMPLIANT</span>
+                            {% else %}
+                                <span class="badge" style="background:var(--critical-subtle); color:var(--critical-text); border:1px solid var(--critical-border); font-weight:700;">PPE VIOLATION</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            <div style="display:inline-flex; gap:8px;">
+                                <a href="/session/{{ s.session_uid }}" class="btn btn-outline btn-sm" title="View Session Details">
+                                    View
+                                </a>
+                                <a href="/reports/session/{{ s.session_uid }}/download" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:5px;" title="Download Individual Session PDF">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    Download PDF
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; padding:48px 24px; color:var(--text-muted);">
+                            <div style="margin-bottom:12px; color:var(--text-muted); display:flex; justify-content:center;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                            <div style="font-size:1rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">No Detection Sessions Yet</div>
+                            <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+                                Run an Image Detection, Video Detection, or Live Monitoring session to generate audit reports.
+                            </div>
+                            <a href="/detection-center" class="btn btn-primary btn-sm">Go to Detection Center</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

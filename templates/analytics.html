@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics & Metrics | SafetyVision AI{% endblock %}
+{% block page_title %}Analytics & Intelligence{% endblock %}
+{% block page_subtitle %}Quantitative risk trends and compliance analysis — filtered by selected time period{% endblock %}
+
+{% block content %}
+<!-- Time Range Filter Bar -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body" style="padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span style="font-size:0.78rem; color:var(--text-muted); margin-right:4px;">Period:</span>
+            <a href="/analytics?range=today" class="btn {% if active_range == 'today' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Today</a>
+            <a href="/analytics?range=yesterday" class="btn {% if active_range == 'yesterday' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Yesterday</a>
+            <a href="/analytics?range=7days" class="btn {% if active_range == '7days' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Past 7 Days</a>
+            <a href="/analytics?range=30days" class="btn {% if active_range == '30days' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Past 30 Days</a>
+            <a href="/analytics?range=all" class="btn {% if active_range == 'all' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">All Time</a>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">
+            Showing: <strong style="color:var(--text);">{{ range_label }}</strong> &mdash;
+            {{ stats.total_incidents }} incident{{ 's' if stats.total_incidents != 1 else '' }},
+            {{ stats.people_assessed }} person{{ 's' if stats.people_assessed != 1 else '' }} assessed
+        </div>
+    </div>
+</div>
+
+<!-- KPI CARDS (row 1) -->
+{% set tp = trends.incidents_prev %}
+{% set inc_delta = (stats.total_incidents - tp) if tp is not none else none %}
+{% set crit_delta = (stats.critical_incidents - trends.critical_prev) if trends.critical_prev is not none else none %}
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+    <div class="kpi-card accent-blue" title="Distinct confirmed violation episodes in the selected period. One row = one episode.">
+        <div class="kpi-title">Recorded Incidents</div>
+        <div class="kpi-value">
+            {{ stats.total_incidents|default(0) }}
+            {% if inc_delta is not none and tp is not none and tp > 0 %}
+                {% if inc_delta > 0 %}<span class="kpi-trend up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>{{ inc_delta }}</span>
+                {% elif inc_delta < 0 %}<span class="kpi-trend down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{{ (-inc_delta) }}</span>
+                {% else %}<span class="kpi-trend flat">0</span>{% endif %}
+            {% endif %}
+        </div>
+        <div class="kpi-spark"><canvas id="spark-incidents"></canvas></div>
+        <div class="kpi-footer">Distinct episodes in {{ range_label }}</div>
+    </div>
+
+    <div class="kpi-card accent-amber" title="Average risk score across incidents in scope. Range 0-100. Higher = more severe.">
+        <div class="kpi-title">Avg Risk Score</div>
+        <div class="kpi-value">{{ stats.avg_risk|default(0.0) }}<span style="font-size:0.9rem; color:var(--text-muted);">/100</span></div>
+        <div class="kpi-footer">Across incidents in scope</div>
+    </div>
+
+    <div class="kpi-card accent-red" title="Incidents classified CRITICAL in the selected period.">
+        <div class="kpi-title">Critical Hazards</div>
+        <div class="kpi-value" style="color:var(--critical);">
+            {{ stats.critical_incidents|default(0) }}
+            {% if crit_delta is not none and trends.critical_prev is not none and trends.critical_prev > 0 %}
+                {% if crit_delta > 0 %}<span class="kpi-trend up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>{{ crit_delta }}</span>
+                {% elif crit_delta < 0 %}<span class="kpi-trend down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>{{ (-crit_delta) }}</span>
+                {% else %}<span class="kpi-trend flat">0</span>{% endif %}
+            {% endif %}
+        </div>
+        <div class="kpi-footer">Highest severity in {{ range_label }}</div>
+    </div>
+
+    <div class="kpi-card accent-green" title="Share of assessed people with all required PPE present.">
+        <div class="kpi-title">PPE Compliance</div>
+        <div class="kpi-value" style="color:var(--safe-bright);">
+            {% if stats.ppe_compliance is not none %}{{ stats.ppe_compliance }}%{% else %}<span style="font-size:1.4rem; color:var(--text-muted);">N/A</span>{% endif %}
+        </div>
+        <div class="kpi-footer">People with all required PPE</div>
+    </div>
+
+    <div class="kpi-card accent-blue" title="Resolved / (total - false_positives) x100. N/A when no eligible incidents.">
+        <div class="kpi-title">Resolution Rate</div>
+        <div class="kpi-value">
+            {% if stats.resolution_rate is not none %}{{ stats.resolution_rate }}%{% else %}<span style="font-size:1.4rem; color:var(--text-muted);">N/A</span>{% endif %}
+        </div>
+        <div class="kpi-footer">Resolved / eligible incidents</div>
+    </div>
+
+    <div class="kpi-card" title="Experimental index. Formula: 100-(0.35*avg_risk+0.35*(100-compliance%)+0.30*critical_share%). N/A when no data.">
+        <div class="kpi-title">Safety Score <span style="font-size:0.6rem; background:var(--primary-subtle); color:var(--primary-text); border:1px solid var(--primary-border); padding:1px 4px; border-radius:3px;">exp.</span></div>
+        <div class="kpi-value" style="color:var(--primary-text);">
+            {% if stats.site_safety_score is not none %}{{ stats.site_safety_score }}{% else %}<span style="font-size:1.4rem; color:var(--text-muted);">N/A</span>{% endif %}
+        </div>
+        <div class="kpi-footer">Project index (0-100)</div>
+    </div>
+</div>
+
+<!-- ROW 2: Incident Frequency Over Time (wide) + Hazard Severity Distribution (donut) -->
+<div class="an-grid wide-left">
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header">
+            <div>
+                <div class="card-title">
+                    <span class="card-title-icon" style="background:var(--primary-subtle); color:var(--primary-text);">
+                        <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    </span>
+                    Incident Frequency Over Time
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">Confirmed incidents by date/hour &mdash; {{ range_label }}</div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if has_incidents %}
+            <div class="chart-wrap tall"><canvas id="chart-timeline-density"></canvas></div>
+            {% else %}
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:260px; color:var(--text-muted);">
+                <div style="font-size:2rem; margin-bottom:8px;"></div>
+                <div style="font-weight:600;">No incidents in {{ range_label }}</div>
+                <div style="font-size:0.78rem; margin-top:4px;">Frequency appears once incidents are confirmed in this period.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header">
+            <div>
+                <div class="card-title">
+                    <span class="card-title-icon" style="background:var(--warning-subtle); color:var(--warning);">
+                        <svg viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/></svg>
+                    </span>
+                    Hazard Severity Distribution
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">Confirmed incidents per severity &mdash; {{ range_label }}</div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% set sev_total = analytics_json.severity_counts|sum %}
+            {% if sev_total > 0 %}
+            <div class="donut-center-wrap">
+                <div class="chart-wrap short"><canvas id="chart-severity-spread"></canvas></div>
+                <div class="donut-center">
+                    <div class="dc-num">{{ sev_total }}</div>
+                    <div class="dc-lbl">Total</div>
+                </div>
+            </div>
+            <div class="sev-legend">
+                {% set sev_names = ['Low', 'Medium', 'High', 'Critical'] %}
+                {% set sev_colors = ['#10B981', '#F59E0B', '#F97316', '#EF4444'] %}
+                {% for i in range(4) %}
+                <div class="sev-legend-row">
+                    <span class="sev-legend-dot" style="background:{{ sev_colors[i] }};"></span>
+                    <span class="sev-legend-name">{{ sev_names[i] }}</span>
+                    <span class="sev-legend-count">{{ analytics_json.severity_counts[i] }}</span>
+                    <span class="sev-legend-pct">{{ (analytics_json.severity_counts[i] / sev_total * 100)|round(1) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:220px; color:var(--text-muted);">
+                <div style="font-size:2rem; margin-bottom:8px;"><span style="color:var(--safe);">&#10003;</span></div>
+                <div style="font-weight:600;">No incidents in {{ range_label }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ROW 3: Incident Distribution by Violation Type + PPE Compliance by Equipment Type -->
+<div class="an-grid">
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header">
+            <div>
+                <div class="card-title">
+                    <span class="card-title-icon" style="background:var(--primary-subtle); color:var(--primary-text);">
+                        <svg viewBox="0 0 24 24"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+                    </span>
+                    Incident Distribution by Violation Type
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">Confirmed episodes grouped by violation type &mdash; {{ range_label }}</div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if has_incidents and analytics_json.viol_labels and analytics_json.viol_labels|length > 0 %}
+            <div class="chart-wrap"><canvas id="chart-viol-types"></canvas></div>
+            {% else %}
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:220px; color:var(--text-muted);">
+                <div style="font-size:2rem; margin-bottom:8px;"></div>
+                <div style="font-weight:600;">No incidents in {{ range_label }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-header">
+            <div>
+                <div class="card-title">
+                    <span class="card-title-icon" style="background:var(--safe-subtle); color:var(--safe-bright);">
+                        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                    </span>
+                    PPE Compliance by Equipment Type
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">% of assessed people with each PPE item present &mdash; {{ range_label }}</div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if has_sessions %}
+            <div class="ppe-gauge-grid">
+                {% set ppe = [
+                    ('Hardhat', analytics_json.hh_rate, analytics_json.hh_present, analytics_json.hh_violations),
+                    ('Protective Mask', analytics_json.mask_rate, analytics_json.mask_present, analytics_json.mask_violations),
+                    ('Safety Vest', analytics_json.vest_rate, analytics_json.vest_present, analytics_json.vest_violations)
+                ] %}
+                {% for name, rate, present, missing in ppe %}
+                {% set val = rate if rate is not none else 0 %}
+                {% set gcolor = '#10B981' if val >= 90 else ('#FF941F' if val >= 70 else ('#F59E0B' if val >= 50 else '#EF4444')) %}
+                <div class="ppe-gauge">
+                    <svg class="gauge-svg" viewBox="0 0 120 120">
+                        <circle class="gauge-track" cx="60" cy="60" r="48"/>
+                        <circle class="gauge-fill" cx="60" cy="60" r="48"
+                                stroke="{{ gcolor }}"
+                                stroke-dasharray="{{ (2 * 3.14159265 * 48)|round(1) }}"
+                                stroke-dashoffset="{{ (2 * 3.14159265 * 48 * (1 - val/100))|round(1) }}"
+                                data-gauge="{{ val }}"/>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="gauge-pct" style="color:{{ gcolor }};">{{ val|round(0)|int }}%</div>
+                    </div>
+                    <div class="gauge-label">{{ name }}</div>
+                    <div class="gauge-sub">Present: <b>{{ present|default(0) }}</b> &bull; Missing: <b>{{ missing|default(0) }}</b></div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:220px; color:var(--text-muted);">
+                <div style="font-size:2rem; margin-bottom:8px;"></div>
+                <div style="font-weight:600;">No sessions with PPE data in {{ range_label }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ROW 4: High-Risk Zones / Camera Locations -->
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-header">
+        <div>
+            <div class="card-title">
+                <span class="card-title-icon" style="background:var(--high-subtle); color:var(--high-text);">
+                    <svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+                High-Risk Zones / Camera Locations
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">Incident count per camera location recorded in incidents &mdash; {{ range_label }}</div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if has_incidents and analytics_json.zone_labels and analytics_json.zone_labels|length > 0 %}
+        <div class="chart-wrap short"><canvas id="chart-zone-vulnerability"></canvas></div>
+        {% else %}
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; color:var(--text-muted);">
+            <div style="font-size:1.6rem; margin-bottom:8px;"></div>
+            <div style="font-weight:600;">No zone/location data in {{ range_label }}</div>
+            <div style="font-size:0.78rem; margin-top:4px;">Zone data appears once incidents reference a named camera or zone location.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ROW 5: Recent Incidents table -->
+<div class="card" style="margin-bottom:0;">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <div class="card-title">
+                <span class="card-title-icon" style="background:var(--critical-subtle); color:var(--critical);">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </span>
+                Recent Incidents
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">Latest confirmed PPE violations from selected period</div>
+        </div>
+        <a href="/incidents" class="btn btn-outline btn-sm">View All Incidents &rarr;</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Time</th><th>Person</th><th>Violation</th><th>Severity</th>
+                    <th>Status</th><th>Evidence</th><th style="text-align:right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if recent_incidents %}
+                    {% for inc in recent_incidents %}
+                    <tr>
+                        <td style="font-family:var(--font-mono); font-size:0.76rem; color:var(--text-muted); white-space:nowrap;">{{ inc.timestamp[:16] if inc.timestamp else '—' }}</td>
+                        <td><span style="font-weight:700;">Person #{{ inc.person_tracking_id }}</span></td>
+                        <td><span style="font-weight:600;">{{ inc.violation_type }}</span></td>
+                        <td><span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+                        <td>
+                            {% if inc.status == 'RESOLVED' %}<span class="badge badge-low">Resolved</span>
+                            {% elif inc.status == 'FALSE_POSITIVE' %}<span class="badge badge-medium">False Positive</span>
+                            {% else %}<span class="badge badge-critical">Detected</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if inc.evidence_image %}
+                            <a href="/{{ inc.evidence_image }}" target="_blank" class="btn btn-outline btn-sm" style="padding:2px 9px;">Evidence</a>
+                            {% else %}<span style="color:var(--text-muted); font-size:0.75rem;">None</span>{% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            <a href="/incidents" class="btn btn-outline btn-sm" style="padding:2px 10px;">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="7" style="text-align:center; padding:36px 24px; color:var(--text-muted);">
+                        <div style="font-size:1.6rem; margin-bottom:8px;"><span style="color:var(--safe);">&#10003;</span></div>
+                        <div style="font-weight:600;">No incidents in {{ range_label }}</div>
+                        <div style="font-size:0.8rem; margin-top:4px;">No confirmed violations were recorded in the selected period.</div>
+                    </td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const aData = {{ analytics_json|tojson }};
+
+// Grid/tick colors re-themed at runtime by ThemeManager; readable defaults here.
+const GRID = 'rgba(148,148,148,0.20)';
+const TICK = '#949494';
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const animOff = document.documentElement.getAttribute('data-anim') === 'off';
+const noAnim = reduceMotion || animOff;
+
+/* ---- PPE gauge entrance animation (SVG radial) ---- */
+(function animateGauges(){
+    const C = 2 * Math.PI * 48;
+    document.querySelectorAll('.gauge-fill').forEach(el => {
+        const target = parseFloat(el.getAttribute('data-gauge')) || 0;
+        const finalOffset = (C * (1 - target / 100)).toFixed(1);
+        if (noAnim) {
+            el.style.strokeDashoffset = finalOffset;
+        } else {
+            el.style.strokeDashoffset = C;            // start empty
+            requestAnimationFrame(() => {
+                setTimeout(() => { el.style.strokeDashoffset = finalOffset; }, 60);
+            });
+        }
+    });
+})();
+
+/* ---- KPI sparkline (real daily_counts) ---- */
+(function sparkIncidents(){
+    const el = document.getElementById('spark-incidents');
+    if (!el || typeof Chart === 'undefined') return;
+    const data = aData.daily_counts || [];
+    if (data.length < 2) return;
+    new Chart(el, {
+        type: 'line',
+        data: {
+            labels: data.map((_, i) => i),
+            datasets: [{
+                data: data,
+                borderColor: '#FF941F', borderWidth: 2, pointRadius: 0,
+                tension: 0.4, fill: true,
+                backgroundColor: (ctx) => {
+                    const c = ctx.chart, area = c.chartArea;
+                    if (!area) return 'rgba(255,148,31,0.12)';
+                    const g = c.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                    g.addColorStop(0, 'rgba(255,148,31,0.30)');
+                    g.addColorStop(1, 'rgba(255,148,31,0.00)');
+                    return g;
+                }
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false } },
+            animation: noAnim ? false : { duration: 700 }
+        }
+    });
+})();
+
+/* ---- 1. Incident Frequency Over Time (neon line) ---- */
+{% if has_incidents %}
+(function timeline(){
+    const el = document.getElementById('chart-timeline-density');
+    if (!el || typeof Chart === 'undefined') return;
+    if (!aData.daily_labels || aData.daily_labels.length === 0) return;
+    new Chart(el, {
+        type: 'line',
+        data: {
+            labels: aData.daily_labels,
+            datasets: [{
+                label: 'Confirmed Incidents',
+                data: aData.daily_counts,
+                borderColor: '#FF941F',
+                backgroundColor: (ctx) => {
+                    const chart = ctx.chart;
+                    const area = chart.chartArea;
+                    if (!area) return 'rgba(255,148,31,0.15)';
+                    const g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                    g.addColorStop(0, 'rgba(255,148,31,0.40)');
+                    g.addColorStop(1, 'rgba(255,148,31,0.02)');
+                    return g;
+                },
+                borderWidth: 2.5, fill: true, tension: 0.38,
+                pointRadius: aData.daily_labels.length <= 12 ? 4 : 2.5,
+                pointBackgroundColor: '#E87F0B', pointBorderColor: '#FFE8CF', pointBorderWidth: 1.5,
+                pointHoverRadius: 7, pointHoverBackgroundColor: '#FFAA45',
+                pointHoverBorderColor: '#FFFFFF', pointHoverBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                neon: { enabled: true, glowColor: 'rgba(255,148,31,0.55)', blur: 12 },
+                tooltip: { callbacks: {
+                    title: (items) => items[0].label,
+                    label: (ctx) => ` ${ctx.parsed.y} incident${ctx.parsed.y === 1 ? '' : 's'}`
+                } }
+            },
+            interaction: { intersect: false, mode: 'index' },
+            scales: {
+                y: { beginAtZero: true, grid: { color: GRID }, border: { display: false }, ticks: { color: TICK, precision: 0 } },
+                x: { grid: { display: false }, border: { color: GRID }, ticks: { color: TICK, maxTicksLimit: 12, maxRotation: 30 } }
+            },
+            animation: noAnim ? false : { duration: 800 }
+        }
+    });
+})();
+{% endif %}
+
+/* ---- 2. Hazard Severity Distribution (donut, center total via overlay) ---- */
+{% set sev_total = analytics_json.severity_counts|sum %}
+{% if sev_total > 0 %}
+(function severity(){
+    const el = document.getElementById('chart-severity-spread');
+    if (!el || typeof Chart === 'undefined') return;
+    new Chart(el, {
+        type: 'doughnut',
+        data: {
+            labels: ['Low', 'Medium', 'High', 'Critical'],
+            datasets: [{
+                data: aData.severity_counts,
+                backgroundColor: ['#10B981', '#F59E0B', '#F97316', '#EF4444'],
+                borderColor: 'rgba(0,0,0,0)', borderWidth: 3, hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '72%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} incident${ctx.raw === 1 ? '' : 's'}` } }
+            },
+            animation: noAnim ? false : { animateRotate: true, duration: 800 }
+        }
+    });
+})();
+{% endif %}
+
+/* ---- 3. Incident Distribution by Violation Type (horizontal gradient bars) ---- */
+{% if has_incidents %}
+(function violTypes(){
+    const el = document.getElementById('chart-viol-types');
+    if (!el || typeof Chart === 'undefined') return;
+    if (!aData.viol_labels || aData.viol_labels.length === 0) return;
+    const maxV = Math.max.apply(null, aData.viol_counts);
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: aData.viol_labels,
+            datasets: [{
+                label: 'Incidents',
+                data: aData.viol_counts,
+                backgroundColor: (ctx) => {
+                    const c = ctx.chart, area = c.chartArea;
+                    if (!area) return 'rgba(255,148,31,0.85)';
+                    const g = c.ctx.createLinearGradient(area.left, 0, area.right, 0);
+                    g.addColorStop(0, 'rgba(255,170,69,0.85)');
+                    g.addColorStop(1, 'rgba(232,127,11,0.95)');
+                    return g;
+                },
+                borderRadius: 6, borderSkipped: false, barPercentage: 0.7
+            }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.raw} incident${ctx.raw === 1 ? '' : 's'}` } }
+            },
+            scales: {
+                x: { beginAtZero: true, suggestedMax: Math.ceil(maxV * 1.15), grid: { color: GRID }, border: { display: false }, ticks: { color: TICK, precision: 0 } },
+                y: { grid: { display: false }, border: { display: false }, ticks: { color: TICK, font: { size: 11 } } }
+            },
+            animation: noAnim ? false : { duration: 800 }
+        }
+    });
+})();
+{% endif %}
+
+/* ---- 4. High-Risk Zones / Camera Locations (horizontal gradient bars) ---- */
+{% if analytics_json.zone_labels and analytics_json.zone_labels|length > 0 %}
+(function zones(){
+    const el = document.getElementById('chart-zone-vulnerability');
+    if (!el || typeof Chart === 'undefined') return;
+    if (!aData.zone_labels || aData.zone_labels.length === 0) return;
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: aData.zone_labels,
+            datasets: [{
+                label: 'Incident Count',
+                data: aData.zone_counts,
+                backgroundColor: (ctx) => {
+                    const c = ctx.chart, area = c.chartArea;
+                    if (!area) return 'rgba(141,83,28,0.85)';
+                    const g = c.ctx.createLinearGradient(area.left, 0, area.right, 0);
+                    g.addColorStop(0, 'rgba(141,83,28,0.85)');
+                    g.addColorStop(1, 'rgba(232,127,11,0.95)');
+                    return g;
+                },
+                borderRadius: 6, borderSkipped: false, barPercentage: 0.65
+            }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.raw} incident${ctx.raw === 1 ? '' : 's'}` } }
+            },
+            scales: {
+                x: { beginAtZero: true, grid: { color: GRID }, border: { display: false }, ticks: { color: TICK, precision: 0 } },
+                y: { grid: { display: false }, border: { display: false }, ticks: { color: TICK } }
+            },
+            animation: noAnim ? false : { duration: 800 }
+        }
+    });
+})();
+{% endif %}
+</script>
+{% endblock %}

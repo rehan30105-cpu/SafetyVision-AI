@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Live Monitoring | SafetyVision AI{% endblock %}
+{% block page_title %}Laptop Webcam Live Monitoring{% endblock %}
+{% block page_subtitle %}Real-Time Person-Wise PPE Compliance Verification & Safety Status{% endblock %}
+
+{% block content %}
+    <!-- Explanatory Banner for Project Evaluator -->
+<div style="background:var(--primary-subtle); border:1px solid var(--primary-border); border-radius:var(--radius-md); padding:10px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+    <div style="font-size:0.84rem; color:var(--text-secondary);">
+        <span style="font-weight:700; color:var(--primary-text);">Evaluation Guide:</span> Stand or sit in front of the laptop webcam. The system detects each visible person individually (Person #1, Person #2, etc.) and independently verifies <b>Hardhat</b>, <b>Protective Mask</b>, and <b>Safety Vest</b>.
+    </div>
+    <span class="badge badge-low" style="background:var(--primary-subtle); color:var(--primary-text); border:1px solid var(--primary-border);">Webcam Mode</span>
+</div>
+
+<!-- Camera Error Banner (Hidden by default) -->
+<div id="camera-error-banner" style="display:none; background:var(--critical-subtle); border:1px solid var(--critical-border); color:var(--critical-text); padding:12px 16px; border-radius:var(--radius-md); font-size:0.85rem; font-weight:600; margin-bottom:16px;"></div>
+
+<div class="live-monitor-grid">
+    <!-- LEFT COLUMN: Live Laptop Webcam & Event Timeline -->
+    <div>
+        <!-- Video Viewport Container with Canvas Overlays -->
+        <div id="video-viewport-wrapper" class="video-viewport-wrapper live-monitor-viewport" style="aspect-ratio:16/9; min-height:0; position:relative; background:#17191A; border-radius:4px; overflow:hidden;">
+            <!-- Background Video Element -->
+            <video id="monitor-video" class="video-element" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; display:block; visibility:hidden;"></video>
+
+            <div class="camera-idle-state" role="status" aria-live="polite">
+                <div class="camera-idle-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 5h-3l-2 3H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2l-2-3Z"/><circle cx="12" cy="14" r="3"/></svg></div>
+                <strong>Camera is not connected</strong>
+                <span>Start the camera when ready. Live video and PPE results appear here only after browser access is granted.</span>
+            </div>
+            
+            <!-- Real-time HUD Drawing Canvas -->
+            <canvas id="monitor-canvas" class="canvas-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%;"></canvas>
+
+            <!-- Top HUD Bar -->
+            <div class="hud-top-bar" style="position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; z-index:10;">
+                <div style="display:flex; gap:8px;">
+                    <div class="hud-pill" id="camera-status-pill">
+                        <span class="pulse-dot" style="background:#949494;"></span> READY
+                    </div>
+                    <div class="hud-pill" id="hud-fps">0.0 FPS</div>
+                    <div class="hud-pill" id="hud-latency" title="Model Inference Time">0.0 ms</div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <div class="hud-pill" style="font-size:0.72rem;">YOLOv8n &bull; {{ model_info.device }}</div>
+                    <button onclick="monitor.toggleFullscreen()" class="hud-pill" style="cursor:pointer;" title="Fullscreen">[  ]</button>
+                </div>
+            </div>
+
+            <!-- Bottom Camera Controls Strip -->
+            <div class="hud-controls-bar" style="position:absolute; bottom:12px; left:12px; right:12px; display:flex; justify-content:space-between; align-items:center; background:rgba(10,10,10,0.9); backdrop-filter:blur(8px); padding:8px 14px; border-radius:var(--radius-md); z-index:10;">
+                <!-- Primary Action Buttons -->
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button id="btn-stream-start" class="btn btn-primary btn-sm" onclick="startStream()">
+                        <span>▶ Start Camera</span>
+                    </button>
+                    <button id="btn-stream-stop" class="btn btn-danger btn-sm" onclick="stopStream()" style="display:none;">
+                        <span>⏹ Stop Camera</span>
+                    </button>
+                    <button id="btn-stream-pause" class="btn btn-hud btn-sm" onclick="togglePause()">
+                        ⏸ Pause
+                    </button>
+                    <button class="btn btn-hud btn-sm" onclick="monitor.captureSnapshot()" title="Capture Frame">
+                        Snapshot
+                    </button>
+                </div>
+
+                <!-- Simple Overlay Toggles -->
+                <div class="toggle-group" style="display:flex; gap:6px;">
+                    <button id="tog-bbox" class="toggle-btn active" onclick="toggleOverlay('showBBoxes', this)">B-Boxes</button>
+                    <button id="tog-track" class="toggle-btn active" onclick="toggleOverlay('showPersonId', this)">Person IDs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Event Timeline Below Video Feed -->
+        <div class="card" style="margin-top: 16px; margin-bottom:0;">
+            <div class="card-header" style="padding:10px 16px;">
+                <div class="card-title" style="font-size:0.9rem;">
+                    <span>Safety Events Timeline</span>
+                </div>
+                <span style="font-size:0.75rem; color:var(--text-muted);">State-based alerts only</span>
+            </div>
+            <div class="card-body" style="padding:10px 16px;">
+                <div id="event-timeline" class="timeline-container" style="max-height:160px; overflow-y:auto;">
+                    <div class="timeline-item">
+                        <div class="timeline-time">Ready</div>
+                        <div class="timeline-content">Laptop webcam ready. Click <b>Start Camera</b> to begin person-wise PPE analysis.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Live Safety Summary & Individual Person Cards -->
+    <div>
+        <!-- Live Safety Summary Grid -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header" style="padding:12px 16px;">
+                <div>
+                    <div class="card-title" style="font-size:0.95rem;">Live Safety Summary</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">Aggregated status across visible personnel</div>
+                </div>
+            </div>
+            <div class="card-body" style="padding:14px 16px;">
+                <!-- 4 KPI Metrics -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                    <div style="background:var(--bg-card-subtle); padding:10px; border-radius:var(--radius-md);">
+                        <div style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">PEOPLE DETECTED</div>
+                        <div id="kpi-people-detected" style="font-size:1.5rem; font-weight:700; color:var(--text-primary);">0</div>
+                    </div>
+                    <div style="background:var(--safe-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--safe-border);">
+                        <div style="font-size:0.72rem; color:var(--safe-text); font-weight:600;">COMPLIANT PEOPLE</div>
+                        <div id="kpi-compliant-count" style="font-size:1.5rem; font-weight:700; color:var(--safe-bright);">0</div>
+                    </div>
+                    <div style="background:var(--warning-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--warning-border);">
+                        <div style="font-size:0.72rem; color:var(--warning-text); font-weight:600;">PPE VIOLATIONS</div>
+                        <div id="kpi-violations-count" style="font-size:1.5rem; font-weight:700; color:var(--warning);">0</div>
+                    </div>
+                    <div style="background:var(--critical-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--critical-border);">
+                        <div style="font-size:0.72rem; color:var(--critical-text); font-weight:600;">CRITICAL HAZARDS</div>
+                        <div id="kpi-critical-count" style="font-size:1.5rem; font-weight:700; color:var(--critical);">0</div>
+                    </div>
+                </div>
+
+                <!-- Compliance & Safety Score Bar -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--primary-subtle); border:1px solid var(--primary-border); padding:8px 12px; border-radius:var(--radius-md);">
+                    <div>
+                        <div style="font-size:0.72rem; font-weight:700; color:var(--primary-text);">OVERALL COMPLIANCE</div>
+                        <div style="font-size:0.7rem; color:var(--text-secondary);">Across visible persons</div>
+                    </div>
+                    <div id="kpi-compliance-rate" style="font-size:1.35rem; font-weight:700; color:var(--primary-text);">N/A</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PERSON-WISE PPE RESULTS (MANDATORY REQUIREMENT) -->
+        <div class="card" style="margin-bottom:0;">
+            <div class="card-header" style="padding:12px 16px;">
+                <div>
+                    <div class="card-title" style="font-size:0.95rem;">Current People Analysis</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">Independent PPE result for each visible individual</div>
+                </div>
+            </div>
+            <div class="card-body" style="padding:12px 14px; max-height:420px; overflow-y:auto;">
+                <!-- Container dynamically filled with individual person cards -->
+                <div id="person-results-container">
+                    <div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--bg-card-subtle); border-radius:var(--radius-md);">
+                        <div style="margin-bottom:8px; color:var(--text-muted); display:flex; justify-content:center;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:2px;">No Personnel in Camera View</div>
+                        <div style="font-size:0.75rem;">Stand in front of the laptop webcam to analyze PPE compliance.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/detection.js"></script>
+<script>
+// Initialize Monitor for Laptop Webcam
+const monitor = new SafetyVisionMonitor({
+    videoId: 'monitor-video',
+    canvasId: 'monitor-canvas'
+});
+
+function startStream() {
+    monitor.startWebcam();
+}
+
+function stopStream() {
+    monitor.stop();
+}
+
+function togglePause() {
+    const isPaused = monitor.pause();
+    document.getElementById('btn-stream-pause').textContent = isPaused ? '▶ Resume' : '⏸ Pause';
+}
+
+function toggleOverlay(property, btn) {
+    monitor[property] = !monitor[property];
+    btn.classList.toggle('active', monitor[property]);
+}
+</script>
+{% endblock %}

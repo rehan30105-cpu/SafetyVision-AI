@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation | SafetyVision AI{% endblock %}
+{% block page_title %}Technical System Documentation{% endblock %}
+{% block page_subtitle %}Final-Year B.Tech AI & Data Science Project Architecture & Theoretical Specifications{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body" style="font-size:0.9rem; line-height:1.8; color:var(--text-secondary);">
+        <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+            1. Project Overview & Objectives
+        </h3>
+        <p style="margin-bottom:16px;">
+            <b>SAFETYVISION AI</b> is an advanced, autonomous workplace safety inspection, PPE compliance verification, and multi-hazard risk monitoring command platform. Built as a Final Year B.Tech Artificial Intelligence & Data Science capstone project, it bridges computer vision with domain-specific spatial reasoning and deterministic safety engineering.
+        </p>
+
+        <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+            2. End-to-End AI Pipeline Architecture
+        </h3>
+        <div style="background:#141414; color:#E5E5E5; padding:16px 20px; border-radius:var(--radius-md); font-family:var(--font-mono); font-size:0.8rem; margin-bottom:16px; overflow-x:auto;">
+Camera Stream / Frame &rarr; YOLOv8n Detection &rarr; Centroid/IoU Person Tracking &rarr; Spatial Person-PPE Association &rarr; Safety Zone Evaluator &rarr; Environmental Context Engine (Machinery/Vehicles/Cones) &rarr; Dynamic Risk Engine &rarr; Temporal Persistence Confirmation &rarr; Event-Driven Evidence Capture &rarr; SQLite Persistence &rarr; Real-time Telemetry HUD & Dashboard
+        </div>
+
+        <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+            3. Supported 10 Semantic Model Classes
+        </h3>
+        <p style="margin-bottom:8px;">
+            The system operates on an explicitly trained YOLO model checkpoint with strictly 10 recognized classes:
+        </p>
+        <ol style="padding-left:24px; margin-bottom:16px;">
+            <li><code>Hardhat</code> (Compliant Head Protection)</li>
+            <li><code>Mask</code> (Compliant Respiratory Protection)</li>
+            <li><code>NO-Hardhat</code> (Head Protection Violation)</li>
+            <li><code>NO-Mask</code> (Respiratory Protection Violation)</li>
+            <li><code>NO-Safety Vest</code> (High-Visibility Vest Violation)</li>
+            <li><code>Person</code> (Human Worker Subject)</li>
+            <li><code>Safety Cone</code> (Perimeter Demarcation Indicator)</li>
+            <li><code>Safety Vest</code> (Compliant High-Visibility Gear)</li>
+            <li><code>machinery</code> (Active Heavy Equipment Hazard)</li>
+            <li><code>vehicle</code> (Industrial Mobile Equipment / Forklifts)</li>
+        </ol>
+
+        <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+            4. Mathematical Formulations
+        </h3>
+        <h4 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin-top:10px;">A. Person-Level PPE Compliance Rate:</h4>
+        <p style="margin-bottom:8px;">
+            $$\text{Compliance} = \sum (w_{\text{item}} \times \mathbb{I}(\text{item} = \text{Present}))$$
+            Default weights: Hardhat (33.33%), Protective Mask (33.33%), Safety Vest (33.34%).
+        </p>
+
+        <h4 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin-top:10px;">B. Dynamic Risk Scoring Formula:</h4>
+        <p style="margin-bottom:8px;">
+            $$R_i = \min\left(100, \max\left(0, (P_{\text{ppe}} + P_{\text{context}} + P_{\text{zone}} + P_{\text{duration}}) \times M_{\text{zone}}\right)\right)$$
+            Where penalties include:
+            Missing Hardhat (+25), Missing Vest (+25), Missing Mask (+15), Synergistic Multi-PPE (+10), Machinery Proximity (+20), Vehicle Proximity (+20), Restricted Zone Breach (+30), and Duration Escalation (+10 to +30).
+        </p>
+
+        <h4 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin-top:10px;">C. Site Safety Score:</h4>
+        <p style="margin-bottom:16px;">
+            $$\text{Safety Score} = 100 - (0.35 \times \overline{\text{Risk}} + 0.35 \times (100 - \text{Compliance}) + 0.30 \times \min(100, \text{Critical} \times 15))$$
+        </p>
+
+        <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+            5. Technical Stack & Dependencies
+        </h3>
+        <ul style="padding-left:24px; margin-bottom:16px;">
+            <li><b>Backend:</b> Python 3.10, Flask 3.1, SQLite3</li>
+            <li><b>Computer Vision & DL:</b> PyTorch 2.14, Ultralytics YOLOv8n, OpenCV 4.11</li>
+            <li><b>Report Compilation:</b> ReportLab 5.0 (Automated Vector PDF)</li>
+            <li><b>Frontend:</b> Vanilla HTML5/CSS3, JavaScript ES6+, HTML5 Canvas, Web Audio API, Chart.js</li>
+        </ul>
+
+        <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+            6. Project Limitations & Future Directions
+        </h3>
+        <ul style="padding-left:24px;">
+            <li><b>2D vs 3D Proximity:</b> Distances are computed as Euclidean pixel approximations in 2D camera plane. Future expansion includes camera intrinsic calibration and 3D point cloud LiDAR fusion.</li>
+            <li><b>Extreme Occlusion:</b> Temporary occlusions are bridged for 30 frames via tracking memory; multi-camera cross-view ReID is planned for future work.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

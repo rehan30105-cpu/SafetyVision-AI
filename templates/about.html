@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}About | SafetyVision AI{% endblock %}
+{% block page_title %}About SafetyVision AI{% endblock %}
+{% block page_subtitle %}Final-Year B.Tech Capstone Project in Artificial Intelligence & Data Science{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <div>
+        <div class="card">
+            <div class="card-header"><div class="card-title"> Project Mission & Innovation</div></div>
+            <div class="card-body" style="font-size:0.9rem; line-height:1.8; color:var(--text-secondary);">
+                <p style="margin-bottom:14px;">
+                    <b>SAFETYVISION AI</b> is an enterprise-grade occupational safety intelligence platform engineered to eradicate preventable workplace injuries in high-hazard industrial environments.
+                </p>
+                <p style="margin-bottom:14px;">
+                    Conventional vision applications stop at naive object detection. SafetyVision AI introduces a multi-tier reasoning pipeline that unifies real-time multi-person tracking, anatomical spatial PPE containment, environmental proximity hazard intelligence (machinery, vehicles, safety cones), temporal persistence debouncing, and automated regulatory audit certification.
+                </p>
+                <h4 style="font-size:0.95rem; font-weight:700; color:var(--text-primary); margin-top:16px; margin-bottom:8px;">Core Technical Innovations:</h4>
+                <ul style="padding-left:20px; line-height:1.7;">
+                    <li><b>Anatomical Spatial Association:</b> Dynamic containment filtering correlating detected gear (Hardhat, Mask, Vest) with anatomical sub-regions of tracked human bounding boxes without requiring biometric face identification.</li>
+                    <li><b>Temporal Persistence Confirmation:</b> Eliminates single-frame false alarms and optical flickering via multi-frame temporal validation state machines.</li>
+                    <li><b>Context-Aware Dynamic Risk Engine:</b> Formulates real-time 0-100 hazard risk by compounding missing safety gear with proximity to active machinery and moving industrial vehicles.</li>
+                    <li><b>Autonomous Audit & PDF Reporting:</b> One-click shift audit sessions that compile verifiable quantitative safety telemetry into executive PDF reports.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-header"><div class="card-title"> Academic Credentials</div></div>
+            <div class="card-body" style="font-size:0.85rem; line-height:1.8; color:var(--text-secondary);">
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:700; color:var(--text-primary);">Degree:</div>
+                    <div>Bachelor of Technology (B.Tech)</div>
+                    <div style="color:var(--primary-text); font-weight:600;">Artificial Intelligence & Data Science</div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:700; color:var(--text-primary);">Project Type:</div>
+                    <div>Final Year Capstone Project</div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:700; color:var(--text-primary);">Supervision & Domain:</div>
+                    <div>Computer Vision, Deep Learning, Edge Intelligence, Industrial IoT Safety</div>
+                </div>
+                <div style="border-top:1px solid var(--border-subtle); padding-top:12px;">
+                    <span class="badge badge-low">FINAL EVALUATION READY</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Detection History | SafetyVision AI{% endblock %}
+{% block page_title %}Detection Sessions History{% endblock %}
+{% block page_subtitle %}Consolidated Log of Image, Video & Live Webcam Safety Monitoring Sessions{% endblock %}
+
+{% block content %}
+<!-- Session Type Quick Filter Strip + Search/Date (server-side, real data) -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="/history{% if query_q or query_date %}?{% if query_q %}q={{ query_q|urlencode }}{% endif %}{% if query_q and query_date %}&{% endif %}{% if query_date %}date={{ query_date|urlencode }}{% endif %}{% endif %}" class="btn {% if not current_type %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+            All Sessions
+        </a>
+        <a href="/history?type=IMAGE{% if query_q %}&q={{ query_q|urlencode }}{% endif %}{% if query_date %}&date={{ query_date|urlencode }}{% endif %}" class="btn {% if current_type == 'IMAGE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+            Image Sessions
+        </a>
+        <a href="/history?type=VIDEO{% if query_q %}&q={{ query_q|urlencode }}{% endif %}{% if query_date %}&date={{ query_date|urlencode }}{% endif %}" class="btn {% if current_type == 'VIDEO' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+            Video Sessions
+        </a>
+        <a href="/history?type=LIVE{% if query_q %}&q={{ query_q|urlencode }}{% endif %}{% if query_date %}&date={{ query_date|urlencode }}{% endif %}" class="btn {% if current_type == 'LIVE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+            Live Webcam Sessions
+        </a>
+    </div>
+    <span class="badge badge-low">
+        Showing {{ sessions|length }} Session{{ 's' if sessions|length != 1 else '' }}
+    </span>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body" style="padding:14px 20px;">
+        <form method="GET" action="/history" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+            {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+            <div style="flex:1; min-width:220px;">
+                <input type="text" name="q" value="{{ query_q or '' }}" class="form-control" placeholder="Search Session ID, filename, run ID...">
+            </div>
+            <div>
+                <input type="date" name="date" value="{{ query_date or '' }}" class="form-control" title="Filter by date">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            <a href="/history{% if current_type %}?type={{ current_type }}{% endif %}" class="btn btn-outline btn-sm">Reset</a>
+        </form>
+    </div>
+</div>
+
+<!-- Sessions Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title" style="font-size:0.95rem;"> Recorded Detection Sessions</div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Type</th>
+                    <th>Date & Time</th>
+                    <th>Source / File</th>
+                    <th>People Analyzed</th>
+                    <th>Compliant / Violations</th>
+                    <th>Overall Compliance</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if sessions and sessions|length > 0 %}
+                    {% for s in sessions %}
+                    {% set is_comp = (s.overall_compliance >= 80.0) %}
+                    <tr>
+                        <td style="white-space:nowrap;">
+                            <a href="/session/{{ s.session_uid }}" style="font-family:var(--font-mono); font-weight:700; color:var(--primary-text); text-decoration:none;">
+                                {{ s.session_uid }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge {% if s.session_type == 'IMAGE' %}badge-low{% elif s.session_type == 'VIDEO' %}badge-medium{% else %}badge-critical{% endif %}">
+                                {{ s.session_type }}
+                            </span>
+                        </td>
+                        <td style="font-size:0.82rem; color:var(--text-secondary); white-space:nowrap;">
+                            {{ s.created_at }}
+                        </td>
+                        <td style="font-size:0.82rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            {{ s.source_name or 'Camera Feed' }}
+                        </td>
+                        <td>
+                            <span style="font-weight:700;">{{ s.people_count }} People</span>
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <span style="color:var(--safe); font-weight:600;">{{ s.compliant_count }} Compliant</span>
+                            /
+                            <span style="color:var(--critical); font-weight:600;" title="Individually missing PPE items">{{ s.display_violation_count|default(s.violation_count) }} Violations</span>
+                        </td>
+                        <td>
+                            <span style="font-weight:700; color:{% if is_comp %}var(--safe){% else %}var(--critical){% endif %};">
+                                {{ s.overall_compliance }}%
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-low">
+                                {{ s.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <a href="/session/{{ s.session_uid }}" class="btn btn-outline btn-sm" style="padding:3px 8px; font-size:0.75rem;">
+                                    View Session
+                                </a>
+                                <a href="/reports/session/{{ s.session_uid }}/download" class="btn btn-primary btn-sm" style="padding:3px 8px; font-size:0.75rem;">
+                                    PDF Report
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align:center; padding:48px 16px; color:var(--text-muted);">
+                            <div style="margin-bottom:10px; color:var(--text-muted); display:flex; justify-content:center;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </div>
+                            <div style="font-weight:600; font-size:0.95rem; color:var(--text-primary); margin-bottom:4px;">No Detection Sessions Found</div>
+                            <div style="font-size:0.8rem; margin-bottom:14px;">Run an Image or Video detection in the Detection Center to record your first session.</div>
+                            <a href="/detection" class="btn btn-primary btn-sm">Go to Detection Center &rarr;</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

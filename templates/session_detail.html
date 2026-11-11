@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Session {{ session.session_uid }} | SafetyVision AI{% endblock %}
+{% block page_title %}Detection Session Details{% endblock %}
+{% block page_subtitle %}Audit Trail, Annotated Evidence & Individual Person-Wise Evaluation{% endblock %}
+
+{% block content %}
+<!-- Back to History Navigation & Action Bar -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+    <a href="/history" class="btn btn-outline btn-sm">
+        &larr; Back to Detection Sessions History
+    </a>
+    <div style="display:flex; gap:10px;">
+        <a href="/reports/session/{{ session.session_uid }}/download" class="btn btn-primary btn-sm">
+            <span> Download Session Report (PDF)</span>
+        </a>
+    </div>
+</div>
+
+<!-- Session Identification Header Card -->
+<div class="card" style="margin-bottom:24px; border-left:4px solid var(--primary);">
+    <div class="card-body" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <h3 style="font-family:var(--font-mono); font-size:1.3rem; font-weight:700; color:var(--text-primary); margin:0;">
+                    {{ session.session_uid }}
+                </h3>
+                <span class="badge {% if session.session_type == 'IMAGE' %}badge-low{% elif session.session_type == 'VIDEO' %}badge-medium{% else %}badge-critical{% endif %}">
+                    {{ session.session_type }} SESSION
+                </span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Captured on {{ session.created_at }} &bull; Source: {{ session.source_name or 'Integrated Sensor' }} &bull; Duration: {{ session.duration_seconds }}s
+            </div>
+        </div>
+        <div>
+            <span class="badge badge-low" style="font-size:0.8rem; padding:6px 12px;">
+                STATUS: {{ session.status }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- 4 Session Summary KPIs -->
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:24px;">
+    <div class="kpi-card">
+        <div class="kpi-title">People Analyzed</div>
+        <div class="kpi-value">{{ session.people_count }}</div>
+        <div class="kpi-footer">Detected individuals</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Compliant People</div>
+        <div class="kpi-value" style="color:var(--safe);">{{ session.compliant_count }}</div>
+        <div class="kpi-footer">100% PPE equipped</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">PPE Violations</div>
+        <div class="kpi-value" style="color:var(--critical);" title="Individually missing required PPE items">{{ session.display_violation_count|default(session.violation_count) }}</div>
+        <div class="kpi-footer">Missing required gear items</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Overall Compliance</div>
+        <div class="kpi-value" style="color:var(--primary-text);">{{ session.overall_compliance }}%</div>
+        <div class="kpi-footer">3-Gear Average</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Safety Score</div>
+        <div class="kpi-value" style="color:var(--primary-text);">{{ session.safety_score }}/100</div>
+        <div class="kpi-footer">Automated safety index</div>
+    </div>
+</div>
+
+<!-- Main Content Grid: Left Evidence Image + Right Person Results -->
+<div style="display:grid; grid-template-columns: 1.4fr 1.2fr; gap:24px; align-items:start;">
+    
+    <!-- LEFT: Primary Session Evidence Photo -->
+    <div>
+        <div class="card" style="margin-bottom:0;">
+            <div class="card-header">
+                <div class="card-title" style="font-size:0.95rem;"> Primary Session Evidence</div>
+            </div>
+            <div class="card-body" style="padding:16px; background:var(--bg-card-subtle); text-align:center;">
+                {% if session.evidence_image %}
+                <img src="/{{ session.evidence_image }}" alt="Session Evidence" style="max-width:100%; max-height:480px; object-fit:contain; border-radius:var(--radius-sm); display:block; margin:0 auto;">
+                {% else %}
+                <div style="padding:48px 16px; color:var(--text-muted);">
+                    No evidence screenshot saved for this session.
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer" style="padding:12px 16px; background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.75rem; color:var(--text-muted);">
+                    File: {{ session.evidence_image or 'None' }}
+                </span>
+                {% if session.evidence_image %}
+                <a href="/{{ session.evidence_image }}" target="_blank" class="btn btn-outline btn-sm">
+                    Open Full Image &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Person-Wise Results -->
+    <div>
+        <div class="card" style="margin-bottom:0;">
+            <div class="card-header" style="padding:12px 18px;">
+                <div class="card-title" style="font-size:0.95rem;"> Individual Person-Wise Results</div>
+            </div>
+            <div class="card-body" style="padding:14px; max-height:560px; overflow-y:auto;">
+                {% if session.person_results and session.person_results|length > 0 %}
+                    {% for p in session.person_results %}
+                    {% set is_comp = (p.compliance >= 99.0) %}
+                    <div class="card" style="margin-bottom:14px; border-left:4px solid {% if is_comp %}var(--safe){% elif p.risk == 'CRITICAL' %}var(--critical){% elif p.risk == 'HIGH' %}var(--high){% else %}var(--warning){% endif %};">
+                        <div style="padding:10px 14px; background:var(--bg-card-subtle); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle);">
+                            <div>
+                                <div style="font-family:var(--font-display); font-weight:700; font-size:0.95rem; color:var(--text-primary);">
+                                    {{ p.label or ('Person #' ~ loop.index) }}
+                                </div>
+                            </div>
+                            <span class="badge {% if is_comp %}badge-low{% elif p.risk == 'CRITICAL' %}badge-critical{% else %}badge-high{% endif %}">
+                                {{ p.status }}
+                            </span>
+                        </div>
+                        <div style="padding:10px 14px; background:var(--bg-card);">
+                            <!-- Gear Checklist -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border-subtle); font-size:0.82rem;">
+                                <span style="color:var(--text-secondary);">Hardhat (Head)</span>
+                                <div>
+                                    {% if p.hardhat == 'PRESENT' %}
+                                    <span style="color:var(--safe); font-weight:700;">&#10003; DETECTED</span>
+                                    {% else %}
+                                    <span style="color:var(--critical); font-weight:700;">&#10007; MISSING</span>
+                                    {% endif %}
+                                    {% if p.hardhat_conf and p.hardhat_conf > 0 %}
+                                    {% set hconf = (p.hardhat_conf * 100)|round|int if p.hardhat_conf <= 1.0 else p.hardhat_conf|round|int %}
+                                    <span style="font-size:0.72rem; color:var(--text-muted); margin-left:4px;">({{ hconf }}%)</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border-subtle); font-size:0.82rem;">
+                                <span style="color:var(--text-secondary);">Protective Mask (Face)</span>
+                                <div>
+                                    {% if p.mask == 'PRESENT' %}
+                                    <span style="color:var(--safe); font-weight:700;">&#10003; DETECTED</span>
+                                    {% else %}
+                                    <span style="color:var(--critical); font-weight:700;">&#10007; MISSING</span>
+                                    {% endif %}
+                                    {% if p.mask_conf and p.mask_conf > 0 %}
+                                    {% set mconf = (p.mask_conf * 100)|round|int if p.mask_conf <= 1.0 else p.mask_conf|round|int %}
+                                    <span style="font-size:0.72rem; color:var(--text-muted); margin-left:4px;">({{ mconf }}%)</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:0.82rem;">
+                                <span style="color:var(--text-secondary);">Safety Vest (Torso)</span>
+                                <div>
+                                    {% if p.vest == 'PRESENT' %}
+                                    <span style="color:var(--safe); font-weight:700;">&#10003; DETECTED</span>
+                                    {% else %}
+                                    <span style="color:var(--critical); font-weight:700;">&#10007; MISSING</span>
+                                    {% endif %}
+                                    {% if p.vest_conf and p.vest_conf > 0 %}
+                                    {% set vconf = (p.vest_conf * 100)|round|int if p.vest_conf <= 1.0 else p.vest_conf|round|int %}
+                                    <span style="font-size:0.72rem; color:var(--text-muted); margin-left:4px;">({{ vconf }}%)</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Footer Scores -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid var(--border-subtle); font-size:0.78rem;">
+                                <span>Compliance: <b style="color:{% if is_comp %}var(--safe){% else %}var(--critical){% endif %}; font-size:0.9rem;">{{ p.compliance }}%</b></span>
+                                <span>Risk Level: <b>{{ p.risk }}</b></span>
+                            </div>
+                            {% if not is_comp and p.missing_items %}
+                            <div style="margin-top:6px; font-size:0.75rem; color:var(--critical);">
+                                <b>Infractions:</b> Missing {{ p.missing_items|join(', ') }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align:center; padding:32px 16px; color:var(--text-muted); background:var(--bg-card-subtle); border-radius:var(--radius-md);">
+                        <div style="font-size:1.8rem; margin-bottom:6px;"></div>
+                        <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:2px;">No Personnel Detected</div>
+                        <div style="font-size:0.75rem;">This session did not contain detected workers.</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

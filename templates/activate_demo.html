@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activate SafetyVision AI account</title>
+<style>body{font:16px/1.55 system-ui,sans-serif;background:#f7f5f0;color:#17191a;margin:0;padding:8vh 20px}.panel{max-width:520px;margin:auto;background:#fff;border:1px solid #e0ddd6;padding:32px}h1{line-height:1.15}label{display:block;margin:16px 0 6px}input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c8c4bc;font:inherit}button{margin-top:20px;padding:12px 20px;background:#d95312;color:white;border:0;font:600 1rem system-ui;cursor:pointer}.notice{padding:12px;background:#fff4ec;border-left:3px solid #f26a21}</style></head>
+<body><main class="panel"><h1>Activate your SafetyVision AI account</h1>
+{% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}{% if success %}<p class="notice" role="status">{{ success }} <a href="{{ url_for('login') }}">Sign in</a></p>{% elif activation_token %}
+<p>Choose a username and password. This one-time link expires after 24 hours.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="form_token" value="{{ form_token }}"><input type="hidden" name="activation_token" value="{{ activation_token }}">
+<label for="username">Username</label><input id="username" name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9_.-]+" autocomplete="username" required>
+<label for="password">Password (at least 12 characters)</label><input id="password" type="password" name="password" minlength="12" maxlength="256" autocomplete="new-password" required>
+<label for="confirm_password">Confirm password</label><input id="confirm_password" type="password" name="confirm_password" minlength="12" maxlength="256" autocomplete="new-password" required>
+<button type="submit">Activate account</button></form>{% endif %}</main></body></html>

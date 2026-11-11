@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs | SafetyVision AI{% endblock %}
+{% block page_title %}Security Audit Trails{% endblock %}
+{% block page_subtitle %}Immutable System Operations, Policy Changes & User Action Logs{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"> System Operation Logs</div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Timestamp</th>
+                    <th>Operator</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for l in logs %}
+                    <tr>
+                        <td>#{{ l.id }}</td>
+                        <td>{{ l.created_at }}</td>
+                        <td><b>{{ l.username }}</b></td>
+                        <td>
+                            <span class="badge" style="background:var(--primary-subtle); color:var(--primary-text); border:1px solid var(--primary-border); font-weight:600;">
+                                {{ l.action }}
+                            </span>
+                        </td>
+                        <td style="font-size:0.82rem; color:var(--text-secondary);">{{ l.details }}</td>
+                        <td style="font-family:var(--font-mono); font-size:0.75rem;">{{ l.ip_address }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">
+                            No security audit events recorded yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

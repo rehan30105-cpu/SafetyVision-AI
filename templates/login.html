@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — SafetyVision AI</title>
+    <meta name="description" content="Sign in to SafetyVision AI — Enterprise PPE Compliance & Workplace Safety Platform">
+    <script>
+    // No-flash theme bootstrap: apply saved/system theme before first paint
+    (function () {
+        try {
+            var t = localStorage.getItem('sv_theme');
+            if (t !== 'light' && t !== 'dark' && t !== 'system') {
+                t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            }
+            var resolved = t;
+            if (t === 'system') {
+                resolved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', resolved);
+        } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+    })();
+    </script>
+    <link rel="stylesheet" href="/static/css/style.css?v=sv110">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563EB'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z'/></svg>">
+</head>
+<body style="display:block; background:var(--bg-app);">
+<div class="login-root">
+
+    <!-- ── Left: Brand Panel ─────────────────────────────────── -->
+    <div class="login-brand">
+
+        <!-- Grid overlay pattern -->
+        <div class="login-brand-grid"></div>
+
+        <!-- Large shield artwork (decorative, background) -->
+
+        <svg class="login-shield-art" width="480" height="480" viewBox="0 0 24 24" fill="white">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+
+        <!-- Logo -->
+        <div class="login-brand-logo">
+            <div class="login-brand-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <circle cx="12" cy="11" r="3"/>
+                </svg>
+            </div>
+            <div>
+                <div class="login-brand-name">
+                    SafetyVision
+                    <span class="login-brand-version">AI v2.0</span>
+                </div>
+                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:500; margin-top:1px;">Workplace Risk &amp; PPE Platform</div>
+            </div>
+        </div>
+
+        <!-- Headline -->
+        <div class="login-headline">
+            Safer Workplaces.<br>
+            <span>Smarter</span> Decisions.
+        </div>
+
+        <!-- Description -->
+        <p class="login-desc">
+            Real-time AI-powered PPE compliance monitoring and hazard detection
+            for industrial worksites. Every worker. Every frame. Every violation.
+        </p>
+
+        <!-- Feature bullets -->
+        <div class="login-feature-list">
+            <div class="login-feature-item">
+                <span class="login-feature-dot"></span>
+                YOLOv8n person-wise hardhat, mask &amp; vest detection
+            </div>
+            <div class="login-feature-item">
+                <span class="login-feature-dot" style="background:var(--safe);"></span>
+                Live webcam monitoring with real-time compliance scores
+            </div>
+            <div class="login-feature-item">
+                <span class="login-feature-dot" style="background:var(--warning);"></span>
+                Incident tracking, evidence capture &amp; audit logs
+            </div>
+            <div class="login-feature-item">
+                <span class="login-feature-dot" style="background:var(--color-accent);"></span>
+                Analytics dashboard, trend reports &amp; safety metrics
+            </div>
+        </div>
+
+    </div><!-- /.login-brand -->
+
+    <!-- ── Right: Login Form Panel ───────────────────────────── -->
+    <div class="login-form-panel">
+        <div style="display:flex; justify-content:flex-end; margin-bottom:4px;">
+            <button id="btn-theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle Theme"
+                    style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; border:1px solid var(--border-subtle); background:var(--bg-card-subtle); color:var(--text-secondary); cursor:pointer; transition:all .18s ease;">
+                <span class="theme-toggle-icon" id="theme-toggle-icon">
+                    <svg id="icon-theme-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    <svg id="icon-theme-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </span>
+            </button>
+        </div>
+        <div class="login-form-box">
+
+            <h1 class="login-form-heading">Welcome back</h1>
+            <p class="login-form-sub">Sign in to your SafetyVision account</p>
+
+            {% if error %}
+            <div class="login-error">
+                <strong>Authentication failed:</strong> {{ error }}
+            </div>
+            {% endif %}
+
+<form action="{{ url_for('login') }}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}" method="POST" autocomplete="on">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="form_token" value="{{ form_token }}">
+    {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+                {% if access_message %}<p class="form-feedback" role="alert">{{ access_message }}</p>{% endif %}
+
+                <!-- Username -->
+                <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label" for="login-username">Username or email</label>
+                    <div class="login-input-wrap" style="margin-bottom:0;">
+                        <span class="login-input-icon">
+                            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </span>
+                        <input
+                            type="text"
+                            id="login-username"
+                            name="username"
+                            required
+                            autocomplete="username"
+                            class="login-input"
+                            placeholder="Username or request email"
+                            value=""
+                        >
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group" style="margin-bottom:6px;">
+                    <label class="form-label" for="login-password">Password</label>
+                    <div class="login-input-wrap" style="margin-bottom:0;">
+                        <span class="login-input-icon">
+                            <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </span>
+                        <input
+                            type="password"
+                            id="login-password"
+                            name="password"
+                            required
+                            autocomplete="current-password"
+                            class="login-input"
+                            placeholder="••••••••"
+                            value=""
+                        >
+                    </div>
+                </div>
+
+                <button type="submit" class="login-submit-btn" id="login-btn">
+                    Sign In to Command Center
+                </button>
+
+            </form>
+
+            <p class="login-creds-hint">Need an account? <a href="{{ url_for('landing') }}#contact">Request access</a>. Sign-in is available only after administrator approval.</p>
+
+        </div>
+    </div><!-- /.login-form-panel -->
+
+</div><!-- /.login-root -->
+
+<script>
+// Prevent double-submit on login button
+document.getElementById('login-btn').closest('form').addEventListener('submit', function() {
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+});
+
+// Theme toggle (login page is standalone — does not load main.js)
+(function () {
+    var btn = document.getElementById('btn-theme-toggle');
+    if (!btn) return;
+    function sync() {
+        var t = document.documentElement.getAttribute('data-theme') || 'light';
+        var sun = document.getElementById('icon-theme-sun');
+        var moon = document.getElementById('icon-theme-moon');
+        if (sun && moon) { sun.style.display = (t === 'light') ? 'block' : 'none'; moon.style.display = (t === 'dark') ? 'block' : 'none'; }
+        btn.setAttribute('aria-pressed', t === 'dark');
+    }
+    btn.addEventListener('click', function () {
+        var next = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('sv_theme', next); } catch (e) {}
+        sync();
+    });
+    sync();
+})();
+</script>
+</body>
+</html>
