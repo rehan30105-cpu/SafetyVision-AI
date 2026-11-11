@@ -41,3 +41,4 @@ services:
         value: SafetyVision AI
       - key: ADMIN_EMAIL
         sync: false
+
